@@ -133,58 +133,67 @@ module.exports = {
     //         res.status(config.OK_STATUS).json({ status: 0, message: common_message.ADMIN_ERROR });
     //     }
     // },
-    adminLogin: async (req, res) => {
-        const { email, password } = req.body;
-        const getAdmin = await common_helper.commonQuery(Admin, "findOne", { email })
-        console.log("-----------------Admin ---------------------------");
-        console.log(getAdmin);
-        console.log("-----------------Admin ---------------------------");
-        if (getAdmin.status == 1) {
-            // if (getAdmin.data.unique_token != null) {
-            //     res.status(config.OK_STATUS).json({ status: 0, message: common_message.ADMIN_ALREADY_LOGIN });
-            //     return
-            // }
-            const comparePassword = await common_helper.checkBcryptPassword(password, getAdmin.data.password)
-            console.log("comparePassword===", comparePassword);
-            if (comparePassword.status == 1) {
-                const verification_number = Math.floor(1000 + Math.random() * 9000);
-                // const verification_number = 1234
-                const updated_data = await common_helper.commonQuery(Admin, "findOneAndUpdate", { _id: getAdmin.data._id }, { token: verification_number }, "_id");
-                if (updated_data.status != 1) {
-                    res.status(config.OK_STATUS).json({ status: 0, message: common_message.ADMIN_ERROR });
-                } else {
-                    let emailData = {
-                        from: process.env.SENDER_EMAIL,
-                        to: email,
-                        subject: "Admin Verification",
-                        html: `<h1>Verification Code</h1>
-                            <hr>
-                            <div style="margin-top:70px;">
-                            <center>
-                            <br />
-                            <div>${verification_number}</div>
-                            </center>
-                            </div>
-                        `
-                    }
-                    console.log('verification_number ---------- : ', verification_number);
-                    transporter.sendMail(emailData, async (err, info) => {
-                        if (err || !info) {
-                            console.log(err);
-                            res.status(config.OK_STATUS).json({ "message": "Error occurred while sending mail." });
-                        } else {
-                            await common_helper.commonQuery(AdminLog, "create", { message: `Verification code send to ${email} successfully.` });
-                            res.status(config.OK_STATUS).json({ status: 1, message: `Verification code send to ${email} successfully.`, updated_data });
-                        }
-                    })
-                }
+   adminLogin: async (req, res) => {
+    const { email, password } = req.body;
+    const getAdmin = await common_helper.commonQuery(Admin, "findOne", { email });
+
+    console.log("-----------------Admin ---------------------------");
+    console.log(getAdmin);
+    console.log("-----------------Admin ---------------------------");
+
+    if (getAdmin.status == 1) {
+        // Plain text password comparison
+        if (password === getAdmin.data.password) {
+            const verification_number = Math.floor(1000 + Math.random() * 9000);
+            const updated_data = await common_helper.commonQuery(
+                Admin,
+                "findOneAndUpdate",
+                { _id: getAdmin.data._id },
+                { token: verification_number },
+                "_id"
+            );
+
+            if (updated_data.status != 1) {
+                res.status(config.OK_STATUS).json({ status: 0, message: common_message.ADMIN_ERROR });
             } else {
-                res.status(config.OK_STATUS).json({ status: 0, message: comparePassword.message });
+                const emailData = {
+                    from: process.env.SENDER_EMAIL,
+                    to: email,
+                    subject: "Admin Verification",
+                    html: `<h1>Verification Code</h1>
+                        <hr>
+                        <div style="margin-top:70px;">
+                        <center>
+                        <br />
+                        <div>${verification_number}</div>
+                        </center>
+                        </div>`
+                };
+
+                console.log('verification_number ---------- : ', verification_number);
+
+                transporter.sendMail(emailData, async (err, info) => {
+                    if (err || !info) {
+                        console.log(err);
+                        res.status(config.OK_STATUS).json({ message: "Error occurred while sending mail." });
+                    } else {
+                        await common_helper.commonQuery(AdminLog, "create", { message: `Verification code sent to ${email} successfully.` });
+                        res.status(config.OK_STATUS).json({
+                            status: 1,
+                            message: `Verification code sent to ${email} successfully.`,
+                            updated_data
+                        });
+                    }
+                });
             }
         } else {
-            res.status(config.OK_STATUS).json({ status: 0, message: common_message.ADMIN_ERROR });
+            res.status(config.OK_STATUS).json({ status: 0, message: "Invalid email or password." });
         }
-    },
+    } else {
+        res.status(config.OK_STATUS).json({ status: 0, message: common_message.ADMIN_ERROR });
+    }
+}
+,
     // adminVerify: async (req, res) => {
     //     const { verification_number, id } = req.body;
     //     // //Use For token
