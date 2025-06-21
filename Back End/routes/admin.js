@@ -133,18 +133,21 @@ module.exports = {
     //         res.status(config.OK_STATUS).json({ status: 0, message: common_message.ADMIN_ERROR });
     //     }
     // },
-   adminLogin: async (req, res) => {
+adminLogin: async (req, res) => {
     const { email, password } = req.body;
+
     const getAdmin = await common_helper.commonQuery(Admin, "findOne", { email });
 
     console.log("-----------------Admin ---------------------------");
     console.log(getAdmin);
     console.log("-----------------Admin ---------------------------");
 
-    if (getAdmin.status == 1) {
-        // Plain text password comparison
-        if (password === getAdmin.data.password) {
+    if (getAdmin.status == 1 && getAdmin.data) {
+        const isMatch = await bcrypt.compare(password, getAdmin.data.password);
+
+        if (isMatch) {
             const verification_number = Math.floor(1000 + Math.random() * 9000);
+
             const updated_data = await common_helper.commonQuery(
                 Admin,
                 "findOneAndUpdate",
@@ -154,7 +157,10 @@ module.exports = {
             );
 
             if (updated_data.status != 1) {
-                res.status(config.OK_STATUS).json({ status: 0, message: common_message.ADMIN_ERROR });
+                res.status(config.OK_STATUS).json({
+                    status: 0,
+                    message: common_message.ADMIN_ERROR,
+                });
             } else {
                 const emailData = {
                     from: process.env.SENDER_EMAIL,
@@ -167,7 +173,7 @@ module.exports = {
                         <br />
                         <div>${verification_number}</div>
                         </center>
-                        </div>`
+                        </div>`,
                 };
 
                 console.log('verification_number ---------- : ', verification_number);
@@ -177,23 +183,87 @@ module.exports = {
                         console.log(err);
                         res.status(config.OK_STATUS).json({ message: "Error occurred while sending mail." });
                     } else {
-                        await common_helper.commonQuery(AdminLog, "create", { message: `Verification code sent to ${email} successfully.` });
+                        await common_helper.commonQuery(AdminLog, "create", {
+                            message: `Verification code sent to ${email} successfully.`,
+                        });
+
                         res.status(config.OK_STATUS).json({
                             status: 1,
                             message: `Verification code sent to ${email} successfully.`,
-                            updated_data
+                            updated_data,
                         });
                     }
                 });
             }
         } else {
-            res.status(config.OK_STATUS).json({ status: 0, message: "Invalid email or password." });
+            res.status(config.OK_STATUS).json({
+                status: 0,
+                message: "Invalid email or password.",
+            });
         }
     } else {
-        res.status(config.OK_STATUS).json({ status: 0, message: common_message.ADMIN_ERROR });
+        res.status(config.OK_STATUS).json({
+            status: 0,
+            message: common_message.ADMIN_ERROR,
+        });
     }
 }
 ,
+ createAdmin : async (req, res) => {
+    try {
+        const {  email, password } = req.body;
+
+        // Input validation
+        if (!email || !password) {
+            return res.status(config.OK_STATUS).json({
+                status: 0,
+                message: "Name, email, and password are required."
+            });
+        }
+
+        // Check if admin already exists
+        const existingAdmin = await common_helper.commonQuery(Admin, "findOne", { email });
+
+        if (existingAdmin.status === 1 && existingAdmin.data) {
+            return res.status(config.OK_STATUS).json({
+                status: 0,
+                message: "Admin with this email already exists."
+            });
+        }
+
+        // Hash the password
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        // Create new admin
+        const newAdminData = {
+            email,
+            password: hashedPassword,
+            created_at: new Date(),
+            status: 1
+        };
+
+        const createdAdmin = await common_helper.commonQuery(Admin, "create", newAdminData);
+
+        if (createdAdmin.status === 1) {
+            res.status(config.OK_STATUS).json({
+                status: 1,
+                message: "Admin created successfully.",
+                data: createdAdmin.data
+            });
+        } else {
+            res.status(config.OK_STATUS).json({
+                status: 0,
+                message: common_message.ADMIN_ERROR
+            });
+        }
+    } catch (err) {
+        console.error("createAdmin error:", err);
+        res.status(config.OK_STATUS).json({
+            status: 0,
+            message: "Server error while creating admin."
+        });
+    }
+},
     // adminVerify: async (req, res) => {
     //     const { verification_number, id } = req.body;
     //     // //Use For token
@@ -1611,6 +1681,49 @@ module.exports = {
             return res.status(config.BAD_REQUEST).json({ status: 0, message: common_message.COMMON_ERROR });
         }
     },
+    createPrivatePassword : async (req, res) => {
+    try {
+        const { password } = req.body;
+
+        if (!password || password.trim() === "") {
+            return res.status(config.BAD_REQUEST).json({ status: 0, message: "Password is required." });
+        }
+
+        // Check if a private password already exists
+        const existingPass = await common_helper.commonQuery(PrivatePassword, "findOne", {});
+        if (existingPass.status === 1 && existingPass.data) {
+            return res.status(config.BAD_REQUEST).json({
+                status: 0,
+                message: "Private password already exists. You can only update it."
+            });
+        }
+
+        // Hash the password
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        const create = await common_helper.commonQuery(PrivatePassword, "create", {
+            password: hashedPassword,
+            created_at: new Date()
+        });
+
+        if (create.status === 1) {
+            await common_helper.commonQuery(AdminLog, "create", {
+                message: "Private password created successfully."
+            });
+
+            return res.status(config.OK_STATUS).json({
+                status: 1,
+                message: "Private password created successfully."
+            });
+        } else {
+            return res.status(config.BAD_REQUEST).json({ status: 0, message: common_message.COMMON_ERROR });
+        }
+
+    } catch (error) {
+        console.error("createPrivatePassword Error:", error);
+        return res.status(config.INTERNAL_SERVER_ERROR).json({ status: 0, message: "Server error." });
+    }
+},
     getCurrentPlayingRoomRemove: async (req, res) => {
         const { ids } = req.body;
         const updated_data = await Room.updateMany({ _id: ids }, { current_playing: false })
