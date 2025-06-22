@@ -508,9 +508,9 @@ socket.emit('sendMessage', 'Hello Server!');
     console.log("Received event123 with data:", data);
     // You can emit a response back to the client if needed
   });
-  socket.on("createJoinPublicRoom", async (_playerData,callback) => {
+  socket.on("createJoinPublicRoom", async (_playerData) => {
     console.log("--------------------socket call createJoinPublicRoom ---------------------------", _playerData);
-        callback({msg:"hellooooo"})
+
 
     let { playerId, switchTable } = JSON.parse(_playerData)
 console.log("playerId", playerId, "switchTable", switchTable);
