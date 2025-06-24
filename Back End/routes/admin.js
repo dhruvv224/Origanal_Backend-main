@@ -1663,10 +1663,13 @@ adminLogin: async (req, res) => {
     updateRoomLimitStatus: async (req, res) => {
         const { status, password } = req.body;
         const getPass = await common_helper.commonQuery(PrivatePassword, "findOne", {});
+        console.log(getPass,"<<<<<<<<<<<<,")
         if (getPass.status == 1) {
             const hashPassword = await common_helper.checkBcryptPassword(password, getPass.data.password);
+            console.log(hashPassword,":::")
             if (hashPassword.status == 1) {
                 const updateRoomLimit = await common_helper.commonQuery(RoomLimitStatus, "findOneAndUpdate", {}, { status })
+                console.log(updateRoomLimit,"{}>>>")
                 if (updateRoomLimit.status == 1) {
                     await common_helper.commonQuery(AdminLog, "create", { message: "Room Limit status updated successfully." });
                     return res.status(config.OK_STATUS).json({ message: "Room Limit status updated successfully." });

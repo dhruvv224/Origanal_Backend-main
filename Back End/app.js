@@ -901,6 +901,8 @@ console.log("playerId", playerId, "switchTable", switchTable);
 })
 
 Variations.on("connection", (socket) => {
+    console.log("varriation Socket connection")
+
   socket.emit("variationsSocket", socket.id)
   socket.on("createJoinPublicRoom", async (_playerData) => {
     let { playerId, switchTable } = JSON.parse(_playerData)
