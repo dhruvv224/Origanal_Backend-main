@@ -959,7 +959,7 @@ Variations.on("connection", (socket) => {
         })
 
         if (!roomLimit) {
-          roomLimit = minimumTableAmount
+          roomLimit = firstRoomLimit
           if (roomLimit.boot_value * 4 > playerChips) {
             socket.emit("noEnoughMoney", JSON.stringify({ status: true }))
             return
