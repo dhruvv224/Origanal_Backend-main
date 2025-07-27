@@ -2587,6 +2587,7 @@ const Room = function (io, AllInOne) {
         onePlayerInterval = setInterval(() => {
             onePlayerTime--
             console.log("One Player Timer", onePlayerTime);
+            addBotPlayer(io, roomName, tableValueLimit, playerObjList, playerSitting, newPlayerJoinObj, roomIsFull)
             if (playerObjList.length > 1 || playerObjList.length == 0) {
                 onePlayerStopTimer()
             }
@@ -2623,7 +2624,7 @@ const Room = function (io, AllInOne) {
     //                 let getStandUpIndex = _.findIndex((_player) => {
     //                     return _player.playerId == _playerId
     //                 })
-    //                 io.in(roomName).emit("onePlayerLeft", JSON.stringify({ status: true }))
+    //                 io.in(roomName).emit("onePlayerLeft", JSON.stringify({ status: common_message.WAITING_ANOTHER }))
     //                 newPlayerJoinObj.splice(newPlayerJoinObj.indexOf(getStandUpIndex))
     //             }
     //         }
@@ -2667,7 +2668,7 @@ const Room = function (io, AllInOne) {
                                     console.log("No Reconnection");
                                 } else {
                                     console.log("------------------------ Reconnection ------------------------");
-                                    playerDisconnectInGamePlay("defaultDisconnect", playerObject, playerObject.getSocketId(), true)
+                                    playerDisconnectInGamePlay("defaultDisconnect", playerObject, playerObject.getSocketId())
                                 }
                             }
 
@@ -3044,6 +3045,78 @@ const Room = function (io, AllInOne) {
     const updateWinHandAndPlayHand = async (playerObjectId, winHand, playHand) => {
         await common_helper.commonQuery(RoomPlayer, "findOneAndUpdate", { player_data: playerObjectId, room_name: roomName }, { $set: { won: winHand, hand: playHand } })
     }
+
+ 
+function addBotPlayer(io, roomName, tableValueLimit, playerObjList, playerSitting, newPlayerJoinObj, roomIsFull) {
+    // Check if the room is already full
+    if (roomIsFull || playerObjList.length + newPlayerJoinObj.length >= 5) {
+        console.log("Room is full, cannot add bot player");
+        return;
+    }
+
+    // Find an empty position for the bot
+    const emptyPosition = _.find(playerSitting, (_position) => _position.isPlayerSitting === false);
+    if (!emptyPosition) {
+        console.log("No empty position available for bot player");
+        return;
+    }
+
+    // Create a new bot player
+    const botPlayer = new Player(io);
+    const botId = 'BOT_' + Date.now();
+    botPlayer.setRoomName(roomName);
+    botPlayer.setPlayerId(botId);
+    botPlayer.setPlayerObjectId(botId);
+    botPlayer.setSocketId('BOT_SOCKET_' + Date.now());
+    botPlayer.setPlayerObject({
+        name: 'TeenPattiBot',
+        avatar_id: 1,
+        profile_pic: '',
+        chips: tableValueLimit.boot_value * 10, // Bot starts with 10x boot value
+        _id: botId
+    });
+    botPlayer.setDealerPosition(0); // Bot is not a dealer by default
+    botPlayer.setEnterAmount(tableValueLimit.boot_value * 10);
+    botPlayer.setPlayerAmount(tableValueLimit.boot_value * 10);
+    botPlayer.setPlayerPosition(emptyPosition.position);
+    botPlayer.setIsActive(true);
+
+    // Mark the position as occupied
+    emptyPosition.isPlayerSitting = true;
+
+    // Add bot to player list
+    playerObjList.push(botPlayer);
+
+    // Emit event to notify room of new player
+    io.in(roomName).emit("newPlayerJoin", JSON.stringify({
+        playerId: botPlayer.getPlayerId(),
+        dealerId: 0,
+        status: true,
+        tableAmount: 0 // Table amount unchanged as game hasn't started
+    }));
+
+    // Log bot addition
+    console.log(`Bot player ${botId} added to room ${roomName} at position ${emptyPosition.position}`);
+
+    // Update RoomPlayer in database
+    const enterRoomPlayer = {
+        player_data: botPlayer.getPlayerObjectId(),
+        room_name: roomName,
+        enter_chips: botPlayer.getEnterAmount(),
+        running_chips: botPlayer.getPlayerAmount()
+    };
+    console.log(enterRoomPlayer, "enterRoomPlayer");
+    common_helper.commonQuery(RoomPlayer, "create", enterRoomPlayer).then((result) => {
+        if (result.status === 1) {
+            common_helper.commonQuery(Room, "findOneAndUpdate", { room_name: roomName }, { $push: { room_players_data: result.data._id } });
+        }
+    });
+
+    // Check if room is now full
+    if (playerObjList.length + newPlayerJoinObj.length >= 5) {
+        roomIsFull = true;
+    }
+}
 }
 
 module.exports = Room
