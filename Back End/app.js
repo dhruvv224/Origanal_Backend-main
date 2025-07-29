@@ -1691,4 +1691,28 @@ const makeRoomId = () => {
 const getLiveNotification = async () => {
   return await common_helper.commonQuery(WebsiteDetail, "findOne", { type: "mobile" })
 }
+
+// karan: Periodically fill all Teen Patti rooms with bots if seats are missing
+const RoomClass = require('./socketAPI/teen-patti/room');
+const fillRoomsWithBots = () => {
+  teenPattiRoomObjList.forEach(roomObj => {
+    // Only fill if room is not full and not deleted
+    if (roomObj && typeof roomObj.getRoomIsFull === 'function' && !roomObj.getRoomIsFull() && typeof roomObj.getIsRoomDelete === 'function' && !roomObj.getIsRoomDelete()) {
+      // Use addBotPlayer from room.js
+      if (typeof roomObj.playerObjList !== 'undefined' && typeof roomObj.playerSitting !== 'undefined' && typeof roomObj.newPlayerJoinObj !== 'undefined') {
+        RoomClass.addBotPlayer(
+          io, // pass io
+          roomObj.getRoomName(),
+          roomObj.getTableValueLimit(),
+          roomObj.playerObjList,
+          roomObj.playerSitting,
+          roomObj.newPlayerJoinObj,
+          roomObj.getRoomIsFull()
+        );
+      }
+    }
+  });
+};
+setInterval(fillRoomsWithBots, 5000); // Run every 5 seconds
+
 module.exports = app;

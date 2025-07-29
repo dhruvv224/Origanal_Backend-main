@@ -3048,20 +3048,22 @@ const Room = function (io, AllInOne) {
 
  
 function addBotPlayer(io, roomName, tableValueLimit, playerObjList, playerSitting, newPlayerJoinObj, roomIsFull) {
+    console.log(`[BOT-LOG] Checking room ${roomName} for bot addition. Current players: ${playerObjList.length}, new joiners: ${newPlayerJoinObj.length}`);
     // Check if the room is already full
     if (roomIsFull || playerObjList.length + newPlayerJoinObj.length >= 5) {
-        console.log("Room is full, cannot add bot player");
+        console.log(`[BOT-LOG] Room ${roomName} is full, cannot add bot player`);
         return;
     }
 
     // Find an empty position for the bot
     const emptyPosition = _.find(playerSitting, (_position) => _position.isPlayerSitting === false);
     if (!emptyPosition) {
-        console.log("No empty position available for bot player");
+        console.log(`[BOT-LOG] No empty position available for bot player in room ${roomName}`);
         return;
     }
 
     // Create a new bot player
+    console.log(`[BOT-LOG] Adding bot to room ${roomName} at position ${emptyPosition.position}`);
     const botPlayer = new Player(io);
     const botId = 'BOT_' + Date.now();
     botPlayer.setRoomName(roomName);
@@ -3086,6 +3088,7 @@ function addBotPlayer(io, roomName, tableValueLimit, playerObjList, playerSittin
 
     // Add bot to player list
     playerObjList.push(botPlayer);
+    console.log(`[BOT-LOG] Bot player ${botId} added to playerObjList in room ${roomName}`);
 
     // Emit event to notify room of new player
     io.in(roomName).emit("newPlayerJoin", JSON.stringify({
@@ -3094,9 +3097,10 @@ function addBotPlayer(io, roomName, tableValueLimit, playerObjList, playerSittin
         status: true,
         tableAmount: 0 // Table amount unchanged as game hasn't started
     }));
+    console.log(`[BOT-LOG] Emitted newPlayerJoin for bot ${botId} in room ${roomName}`);
 
     // Log bot addition
-    console.log(`Bot player ${botId} added to room ${roomName} at position ${emptyPosition.position}`);
+    console.log(`[BOT-LOG] Bot player ${botId} added to room ${roomName} at position ${emptyPosition.position}`);
 
     // Update RoomPlayer in database
     const enterRoomPlayer = {
@@ -3105,15 +3109,19 @@ function addBotPlayer(io, roomName, tableValueLimit, playerObjList, playerSittin
         enter_chips: botPlayer.getEnterAmount(),
         running_chips: botPlayer.getPlayerAmount()
     };
-    console.log(enterRoomPlayer, "enterRoomPlayer");
+    console.log(`[BOT-LOG] Creating RoomPlayer DB entry for bot ${botId} in room ${roomName}:`, enterRoomPlayer);
     common_helper.commonQuery(RoomPlayer, "create", enterRoomPlayer).then((result) => {
         if (result.status === 1) {
+            console.log(`[BOT-LOG] RoomPlayer DB entry created for bot ${botId} in room ${roomName}`);
             common_helper.commonQuery(Room, "findOneAndUpdate", { room_name: roomName }, { $push: { room_players_data: result.data._id } });
+        } else {
+            console.log(`[BOT-LOG] Failed to create RoomPlayer DB entry for bot ${botId} in room ${roomName}`);
         }
     });
 
     // Check if room is now full
     if (playerObjList.length + newPlayerJoinObj.length >= 5) {
+        console.log(`[BOT-LOG] Room ${roomName} is now full after bot addition.`);
         roomIsFull = true;
     }
 }
