@@ -24,7 +24,7 @@ const userModelSchema = new mongoose.Schema({
     },
     login_type: {
         type: String,
-        enum: ["apple", "facebook", "guest", "number", "google"]
+        enum: ["apple", "facebook", "guest", "number", "google", "bot"]
     },
     player_id: {
         type: String

@@ -721,6 +721,54 @@ console.log("playerId", playerId, "switchTable", switchTable);
             myTeenPattiRoom.setGameType("TeenPatti")
             myTeenPattiRoom.setWinLessPercentage(winLessPercentage)
 
+            // Wait 3 seconds, then join a bot if no user has joined.
+            setTimeout(async () => {
+              // Get current players in the room
+              const currentPlayers = myTeenPattiRoom.getAllPlayersObject();
+              const currentPlayerCount = currentPlayers.length;
+
+              // Get the table limit (max players allowed in the room)
+              let tableLimit = 5; // default
+              if (
+                myTeenPattiRoom.getTableValueLimit &&
+                typeof myTeenPattiRoom.getTableValueLimit === "function"
+              ) {
+                if (myTeenPattiRoom.getTableValueLimit().hasOwnProperty("limit")) {
+                  tableLimit = myTeenPattiRoom.getTableValueLimit().limit;
+                }
+              }
+
+              // If less than table limit, fill with bots
+              if (currentPlayerCount < tableLimit) {
+                // Count how many bots are already in the room
+                const botCount = currentPlayers.filter(
+                  (playerObj) =>
+                    playerObj &&
+                    playerObj.playerData &&
+                    playerObj.playerData.login_type === "bot"
+                ).length;
+
+                // How many bots to add
+                const botsToAdd = tableLimit - currentPlayerCount;
+
+                // Get bot template from DB only once
+                let botTemplate = await common_helper.commonQuery(Player, "findOne", { login_type: "bot" });
+
+                if (botTemplate.status === 1 && botTemplate.data) {
+                  for (let i = 0; i < botsToAdd; i++) {
+                    const newBotData = { ...botTemplate.data._doc };
+                    newBotData.player_id = "bot_" + Date.now() + "_" + Math.floor(Math.random() * 10000) + "_" + i;
+                    newBotData.name = "Bot " + Math.floor(Math.random() * 1000);
+                    const botSocket = null;
+                    myTeenPattiRoom.connectPlayer(botSocket, newBotData.player_id, newBotData, 0);
+                    console.log(`Bot ${newBotData.name} created and joined the room as not enough users joined in 3 seconds.`);
+                  }
+                } else {
+                  console.log("No bot template found in database to create new bots.");
+                }
+              }
+            }, 3000);
+
             const createSuccess = createRoom(generatePublicRoomName, "Teen Patti", 1, getPlayerData.data._id, roomLimit)
             createSuccess
               .then(() => {
