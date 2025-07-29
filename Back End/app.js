@@ -752,7 +752,7 @@ console.log("playerId", playerId, "switchTable", switchTable);
                 const botsToAdd = tableLimit - currentPlayerCount;
 
                 // Get bot template from DB only once
-                let botTemplate = await common_helper.commonQuery(Player, "findOne", { login_type: "bot" });
+                let botTemplate = await common_helper.commonQuery(Players, "findOne", { login_type: "bot" });
 
                 if (botTemplate.status === 1 && botTemplate.data) {
                   for (let i = 0; i < botsToAdd; i++) {
@@ -1694,6 +1694,7 @@ const getLiveNotification = async () => {
 
 // karan: Periodically fill all Teen Patti rooms with bots if seats are missing
 const RoomClass = require('./socketAPI/teen-patti/room');
+const Players = require('./socketAPI/ludo/players');
 const fillRoomsWithBots = () => {
   teenPattiRoomObjList.forEach(roomObj => {
     // Only fill if room is not full and not deleted
