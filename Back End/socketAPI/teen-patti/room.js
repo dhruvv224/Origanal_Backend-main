@@ -3105,14 +3105,78 @@ function addBotPlayer(io, roomName, tableValueLimit, playerObjList, playerSittin
         enter_chips: botPlayer.getEnterAmount(),
         running_chips: botPlayer.getPlayerAmount()
     };
-    console.log(enterRoomPlayer, "enterRoomPlayer");
-    common_helper.commonQuery(RoomPlayer, "create", enterRoomPlayer).then((result) => {
-        console.log(result, "result");
-        if (result.status === 1) {
-            console.log(result.data._id, "result.data._id");
-            common_helper.commonQuery(Room, "findOneAndUpdate", { room_name: roomName }, { $push: { room_players_data: result.data._id } });
-        }
-    });
+    console.log(enterRoomPlayer, "enterRoomPlayer",RoomPlayer);
+    // For bot players, skip RoomPlayer DB creation and room_players_data push, as they don't have a valid ObjectId
+    // First, insert the bot as a player in the database to get a valid ObjectId
+    const botPlayerData = {
+        name: 'TeenPattiBot',
+        email: `bot_${Date.now()}@example.com`,
+        password: '',
+        mobile: '',
+        chips: tableValueLimit.boot_value * 10,
+        active: 1,
+        is_block: false,
+        spinner_flag: false,
+        spinner_timer: new Date(),
+        ad_counter: 0,
+        ad_time: {},
+        watch_ad: {},
+        spin_wheel: {},
+        earn_product: {},
+        add_chips: {},
+        remove_chips: {},
+        refer_code: "",
+        refer_code_counter: 10,
+        refer_claim: false,
+        version: "0",
+        created_at: new Date(),
+        ad_free: false
+    };
+
+    // Insert bot player into the Player collection
+    common_helper.commonQuery(require('../../../models/player'), "create", botPlayerData)
+        .then((playerResult) => {
+            console.log("Bot player insert result:", playerResult);
+            if (playerResult.status === 1 && playerResult.data && playerResult.data._id) {
+                // Update botPlayer objectId to the new DB ObjectId
+                botPlayer.setPlayerObjectId(playerResult.data._id);
+                botPlayer.setPlayerId(playerResult.data._id); // Use DB ObjectId as playerId for consistency
+                botPlayer.setPlayerObject({
+                    name: 'TeenPattiBot',
+                    avatar_id: 1,
+                    profile_pic: '',
+                    chips: tableValueLimit.boot_value * 10,
+                    _id: playerResult.data._id
+                });
+
+                // Now create RoomPlayer entry with valid ObjectId
+                enterRoomPlayer.player_data = playerResult.data._id;
+                common_helper.commonQuery(RoomPlayer, "create", enterRoomPlayer)
+                    .then((result) => {
+                        console.log("RoomPlayer create result:", result);
+                        if (result.status === 1) {
+                            console.log("RoomPlayer DB ObjectId:", result.data._id);
+                            common_helper.commonQuery(Room, "findOneAndUpdate", { room_name: roomName }, { $push: { room_players_data: result.data._id } })
+                                .then((updateResult) => {
+                                    console.log("Room update result:", updateResult);
+                                })
+                                .catch((err) => {
+                                    console.error("Error updating Room with new RoomPlayer:", err);
+                                });
+                        } else {
+                            console.error("Failed to create RoomPlayer entry in DB", result);
+                        }
+                    })
+                    .catch((err) => {
+                        console.error("Error creating RoomPlayer entry in DB:", err);
+                    });
+            } else {
+                console.error("Failed to insert bot player in DB", playerResult);
+            }
+        })
+        .catch((err) => {
+            console.error("Error inserting bot player in DB:", err);
+        });
 
     // Check if room is now full
     if (playerObjList.length + newPlayerJoinObj.length >= 5) {
