@@ -3060,7 +3060,7 @@ function addBotPlayer(io, roomName, tableValueLimit, playerObjList, playerSittin
         console.log("No empty position available for bot player");
         return;
     }
-
+    console.log("Creating a new bot player");
     // Create a new bot player
     const botPlayer = new Player(io);
     const botId = 'BOT_' + Date.now();
@@ -3095,72 +3095,78 @@ function addBotPlayer(io, roomName, tableValueLimit, playerObjList, playerSittin
         tableAmount: 0 // Table amount unchanged as game hasn't started
     }));
 
-    // Log: Starting process to find a bot user from the database to use as the bot player
-    const PlayerModel = require('../../../models/player');
-    console.log("Looking for a bot user in the database with email pattern /^bot\\d+@example\\.com$/i");
-    PlayerModel.findOne({ email: { $regex: /^bot\d+@example\.com$/i } })
-        .then((botUser) => {
-            console.log("Database query for bot user completed.");
-            if (!botUser) {
-                console.error("No available bot user found in the database.");
-                return;
-            }
+    // No database bot user found or PlayerModel not available, fallback to static bot player data
+    console.log("No database bot user found or PlayerModel not available, fallback to static bot player data");
+    // Try to get a bot player from static list
+    let botPlayerData = null;
+    try {
+        // Try to require the static bot player list
+        const { BOT_PLAYERS } = require('../../../models/player');
+        // Find a bot player not already in use in this room
+        // (Assume playerObjList contains .getPlayerId() for each player)
+        const usedBotIds = playerObjList.map(p => p.getPlayerId());
+        botPlayerData = BOT_PLAYERS.find(bot =>
+            !usedBotIds.includes(bot.player_id) &&
+            !usedBotIds.includes(bot.email) &&
+            !usedBotIds.includes(bot._id)
+        );
+        if (!botPlayerData) {
+            console.error("No available static bot player found in BOT_PLAYERS.");
+        }
+    } catch (err) {
+        console.error("Could not load static BOT_PLAYERS from models/player.js:", err);
+    }
 
-            // Log: Found bot user
-            console.log(`Found bot user: ${botUser._id}, name: ${botUser.name}, chips: ${botUser.chips}`);
-
-            // Set bot player details from the found bot user
-            console.log("Setting bot player objectId...");
-            botPlayer.setPlayerObjectId(botUser._id);
-            console.log("Setting bot playerId...");
-            botPlayer.setPlayerId(botUser._id);
-            console.log("Setting bot player object...");
-            botPlayer.setPlayerObject({
-                name: botUser.name,
-                avatar_id: 1,
-                profile_pic: '',
-                chips: botUser.chips,
-                _id: botUser._id
-            });
-
-            // Log bot addition
-            console.log(`Bot player ${botUser._id} added to room ${roomName} at position ${emptyPosition.position}`);
-
-            // Update RoomPlayer in database
-            const enterRoomPlayer = {
-                player_data: botUser._id,
-                room_name: roomName,
-                enter_chips: botPlayer.getEnterAmount(),
-                running_chips: botPlayer.getPlayerAmount()
-            };
-            console.log("Prepared enterRoomPlayer object for DB:", enterRoomPlayer, "RoomPlayer model:", RoomPlayer);
-
-            // Create RoomPlayer entry and update room_players_data
-            console.log("Creating RoomPlayer entry in the database...");
-            common_helper.commonQuery(RoomPlayer, "create", enterRoomPlayer)
-                .then((result) => {
-                    console.log("RoomPlayer create result:", result);
-                    if (result.status === 1) {
-                        console.log("RoomPlayer DB ObjectId:", result.data._id);
-                        console.log("Updating Room with new RoomPlayer ObjectId...");
-                        common_helper.commonQuery(Room, "findOneAndUpdate", { room_name: roomName }, { $push: { room_players_data: result.data._id } })
-                            .then((updateResult) => {
-                                console.log("Room update result:", updateResult);
-                            })
-                            .catch((err) => {
-                                console.error("Error updating Room with new RoomPlayer:", err);
-                            });
-                    } else {
-                        console.error("Failed to create RoomPlayer entry in DB", result);
-                    }
-                })
-                .catch((err) => {
-                    console.error("Error creating RoomPlayer entry in DB:", err);
-                });
-        })
-        .catch((err) => {
-            console.error("Error finding bot user in DB:", err);
+    if (botPlayerData) {
+        // Use static bot player data
+        const botId = botPlayerData.player_id || botPlayerData.email || ('BOT_' + Date.now());
+        botPlayer.setPlayerObjectId(botId);
+        botPlayer.setPlayerId(botId);
+        botPlayer.setPlayerObject({
+            name: botPlayerData.name || 'TeenPattiBot',
+            avatar_id: 1,
+            profile_pic: '',
+            chips: botPlayerData.chips || (tableValueLimit.boot_value * 10),
+            _id: botId
         });
+
+        console.log(`Static bot player ${botId} added to room ${roomName} at position ${emptyPosition.position}`);
+
+        // Update RoomPlayer in database if possible
+        const enterRoomPlayer = {
+            player_data: botId,
+            room_name: roomName,
+            enter_chips: botPlayer.getEnterAmount(),
+            running_chips: botPlayer.getPlayerAmount()
+        };
+        console.log("Prepared enterRoomPlayer object for DB:", enterRoomPlayer, "RoomPlayer model:", RoomPlayer);
+
+        // Create RoomPlayer entry and update room_players_data
+        console.log("Creating RoomPlayer entry in the database...");
+        common_helper.commonQuery(RoomPlayer, "create", enterRoomPlayer)
+            .then((result) => {
+                console.log("RoomPlayer create result:", result);
+                if (result.status === 1) {
+                    console.log("RoomPlayer DB ObjectId:", result.data._id);
+                    console.log("Updating Room with new RoomPlayer ObjectId...");
+                    common_helper.commonQuery(Room, "findOneAndUpdate", { room_name: roomName }, { $push: { room_players_data: result.data._id } })
+                        .then((updateResult) => {
+                            console.log("Room update result:", updateResult);
+                        })
+                        .catch((err) => {
+                            console.error("Error updating Room with new RoomPlayer:", err);
+                        });
+                } else {
+                    console.error("Failed to create RoomPlayer entry in DB", result);
+                }
+            })
+            .catch((err) => {
+                console.error("Error creating RoomPlayer entry in DB:", err);
+            });
+    } else {
+        // No bot player available, log error
+        console.error("No bot player could be added: no static or DB bot user found.");
+    }
 
     // Check if room is now full
     if (playerObjList.length + newPlayerJoinObj.length >= 5) {
