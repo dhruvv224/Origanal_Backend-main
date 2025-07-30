@@ -3133,8 +3133,12 @@ function addBotPlayer(io, roomName, tableValueLimit, playerObjList, playerSittin
         console.log(`Static bot player ${botId} added to room ${roomName} at position ${emptyPosition.position}`);
 
         // Update RoomPlayer in database if possible
+        // Fix: player_data must be a valid ObjectId, so we use a dummy ObjectId for bots
+        const mongoose = require('mongoose');
+        // Generate a new ObjectId for the bot RoomPlayer entry
+        const botObjectId = new mongoose.Types.ObjectId();
         const enterRoomPlayer = {
-            player_data: botId,
+            player_data: botObjectId,
             room_name: roomName,
             enter_chips: botPlayer.getEnterAmount(),
             running_chips: botPlayer.getPlayerAmount()
