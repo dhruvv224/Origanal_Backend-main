@@ -3107,7 +3107,9 @@ function addBotPlayer(io, roomName, tableValueLimit, playerObjList, playerSittin
     };
     console.log(enterRoomPlayer, "enterRoomPlayer");
     common_helper.commonQuery(RoomPlayer, "create", enterRoomPlayer).then((result) => {
+        console.log(result, "result");
         if (result.status === 1) {
+            console.log(result.data._id, "result.data._id");
             common_helper.commonQuery(Room, "findOneAndUpdate", { room_name: roomName }, { $push: { room_players_data: result.data._id } });
         }
     });
