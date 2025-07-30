@@ -3101,7 +3101,7 @@ function addBotPlayer(io, roomName, tableValueLimit, playerObjList, playerSittin
     let botPlayerData = null;
     try {
         // Try to require the static bot player list
-        const { BOT_PLAYERS } = require('../../../models/player');
+        const BOT_PLAYERS = Players.BOT_PLAYERS || [];
         // Find a bot player not already in use in this room
         // (Assume playerObjList contains .getPlayerId() for each player)
         const usedBotIds = playerObjList.map(p => p.getPlayerId());
