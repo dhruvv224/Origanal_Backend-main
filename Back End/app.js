@@ -510,7 +510,8 @@ socket.emit('sendMessage', 'Hello Server!');
   });
   socket.on("createJoinPublicRoom", async (_playerData) => {
     console.log("--------------------socket call createJoinPublicRoom ---------------------------", _playerData);
-
+    console.log("--------------------VAMPSY ---------------------------", _playerData);
+    console.log("--------------------VAMPSY ---------------------------", _playerData);
 
     let { playerId, switchTable } = JSON.parse(_playerData)
 console.log("playerId", playerId, "switchTable", switchTable);
