@@ -721,81 +721,12 @@ console.log("playerId", playerId, "switchTable", switchTable);
             myTeenPattiRoom.setGameType("TeenPatti")
             myTeenPattiRoom.setWinLessPercentage(winLessPercentage)
 
-            // karan: IMMEDIATE BOT JOINING - No waiting, join bots right after room creation
-            console.log(`[BOT-LOG] ==========================================`);
-            console.log(`[BOT-LOG] NEW ROOM CREATED: ${generatePublicRoomName}`);
-            console.log(`[BOT-LOG] Room Owner: ${playerId}`);
-            console.log(`[BOT-LOG] Boot Value: ${roomLimit.boot_value}`);
-            console.log(`[BOT-LOG] ==========================================`);
-
-            // Get table limit for this room
-            let tableLimit = 5; // default
-            if (roomLimit && roomLimit.limit) {
-                tableLimit = roomLimit.limit;
-            }
-            console.log(`[BOT-LOG] Table limit for room ${generatePublicRoomName}: ${tableLimit} players`);
-
-            // Calculate how many bots to add (fill room to table limit)
-            const botsToAdd = tableLimit - 1; // -1 because owner is already in room
-            console.log(`[BOT-LOG] Need to add ${botsToAdd} bots to fill room ${generatePublicRoomName}`);
-
-            if (botsToAdd > 0) {
-                console.log(`[BOT-LOG] Starting bot creation and joining process...`);
-                
-                // Create and join bots immediately
-                for (let i = 0; i < botsToAdd; i++) {
-                    console.log(`[BOT-LOG] Creating bot ${i + 1}/${botsToAdd} for room ${generatePublicRoomName}`);
-                    
-                    // Create bot data
-                    const botId = "BOT_" + Date.now() + "_" + Math.floor(Math.random() * 10000) + "_" + i;
-                    const botName = "TeenPattiBot_" + Math.floor(Math.random() * 1000);
-                    
-                    console.log(`[BOT-LOG] Bot ID: ${botId}`);
-                    console.log(`[BOT-LOG] Bot Name: ${botName}`);
-                    
-                    // Create bot player object
-                    const botPlayerData = {
-                        name: botName,
-                        avatar_id: 1,
-                        profile_pic: '',
-                        chips: 100000,
-                        player_id: botId,
-                        _id: botId,
-                        login_type: 'bot'
-                    };
-                    
-                    console.log(`[BOT-LOG] Bot player data created:`, botPlayerData);
-                    
-                    // Join bot to room immediately
-                    try {
-                        console.log(`[BOT-LOG] Attempting to join bot ${botId} to room ${generatePublicRoomName}...`);
-                        myTeenPattiRoom.connectPlayer(null, botId, botPlayerData, 0);
-                        console.log(`[BOT-LOG] SUCCESS: Bot ${botId} joined room ${generatePublicRoomName}`);
-                    } catch (error) {
-                        console.log(`[BOT-LOG] ERROR: Failed to join bot ${botId} to room ${generatePublicRoomName}:`, error.message);
-                    }
-                }
-                
-                console.log(`[BOT-LOG] Bot joining process completed for room ${generatePublicRoomName}`);
-            } else {
-                console.log(`[BOT-LOG] No bots needed for room ${generatePublicRoomName} (already at table limit)`);
-            }
-            
-            console.log(`[BOT-LOG] ==========================================`);
-            console.log(`[BOT-LOG] ROOM ${generatePublicRoomName} SETUP COMPLETED`);
-            console.log(`[BOT-LOG] ==========================================`);
-
             const createSuccess = createRoom(generatePublicRoomName, "Teen Patti", 1, getPlayerData.data._id, roomLimit)
             createSuccess
               .then(() => {
-                console.log(`[BOT-LOG] Database room creation successful for ${generatePublicRoomName}`);
                 socket.emit("roomCodePenal", JSON.stringify({ status: true }))
                 myTeenPattiRoom.connectPlayer(socket, playerId, getPlayerData.data, 1)
                 teenPattiRoomObjList.push(myTeenPattiRoom)
-                console.log(`[BOT-LOG] Room ${generatePublicRoomName} added to teenPattiRoomObjList`);
-              })
-              .catch((error) => {
-                console.log(`[BOT-LOG] ERROR: Database room creation failed for ${generatePublicRoomName}:`, error.message);
               })
 
             console.log("----------------------------------------------------------- createRoom");
@@ -1712,29 +1643,4 @@ const makeRoomId = () => {
 const getLiveNotification = async () => {
   return await common_helper.commonQuery(WebsiteDetail, "findOne", { type: "mobile" })
 }
-
-// karan: Periodically fill all Teen Patti rooms with bots if seats are missing
-const RoomClass = require('./socketAPI/teen-patti/room');
-const Players = require('./socketAPI/ludo/players');
-const fillRoomsWithBots = () => {
-  teenPattiRoomObjList.forEach(roomObj => {
-    // Only fill if room is not full and not deleted
-    if (roomObj && typeof roomObj.getRoomIsFull === 'function' && !roomObj.getRoomIsFull() && typeof roomObj.getIsRoomDelete === 'function' && !roomObj.getIsRoomDelete()) {
-      // Use addBotPlayer from room.js
-      if (typeof roomObj.playerObjList !== 'undefined' && typeof roomObj.playerSitting !== 'undefined' && typeof roomObj.newPlayerJoinObj !== 'undefined') {
-        RoomClass.addBotPlayer(
-          io, // pass io
-          roomObj.getRoomName(),
-          roomObj.getTableValueLimit(),
-          roomObj.playerObjList,
-          roomObj.playerSitting,
-          roomObj.newPlayerJoinObj,
-          roomObj.getRoomIsFull()
-        );
-      }
-    }
-  });
-};
-setInterval(fillRoomsWithBots, 5000); // Run every 5 seconds
-
 module.exports = app;

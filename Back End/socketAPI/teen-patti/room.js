@@ -3048,17 +3048,20 @@ const Room = function (io, AllInOne) {
 
  
 function addBotPlayer(io, roomName, tableValueLimit, playerObjList, playerSitting, newPlayerJoinObj, roomIsFull) {
-    console.log(`[BOT-LOG] Checking room ${roomName} for bot addition. Current players: ${playerObjList.length}, new joiners: ${newPlayerJoinObj.length}`);
+    // Check if the room is already full
     if (roomIsFull || playerObjList.length + newPlayerJoinObj.length >= 5) {
-        console.log(`[BOT-LOG] Room ${roomName} is full, cannot add bot player`);
+        console.log("Room is full, cannot add bot player");
         return;
     }
+
+    // Find an empty position for the bot
     const emptyPosition = _.find(playerSitting, (_position) => _position.isPlayerSitting === false);
     if (!emptyPosition) {
-        console.log(`[BOT-LOG] No empty position available for bot player in room ${roomName}`);
+        console.log("No empty position available for bot player");
         return;
     }
-    console.log(`[BOT-LOG] Adding bot to room ${roomName} at position ${emptyPosition.position}`);
+
+    // Create a new bot player
     const botPlayer = new Player(io);
     const botId = 'BOT_' + Date.now();
     botPlayer.setRoomName(roomName);
@@ -3069,85 +3072,51 @@ function addBotPlayer(io, roomName, tableValueLimit, playerObjList, playerSittin
         name: 'TeenPattiBot',
         avatar_id: 1,
         profile_pic: '',
-        chips: 100000, // Set default bot chips to 100,000
+        chips: tableValueLimit.boot_value * 10, // Bot starts with 10x boot value
         _id: botId
     });
-    console.log(`[BOT-LOG] Set botPlayer.chips to 100000 for bot ${botId}`);
-    botPlayer.setEnterAmount(100000);
-    console.log(`[BOT-LOG] Set botPlayer.enterAmount to 100000 for bot ${botId}`);
-    botPlayer.setPlayerAmount(100000);
-    console.log(`[BOT-LOG] Set botPlayer.playerAmount to 100000 for bot ${botId}`);
-    botPlayer.setDealerPosition(0);
+    botPlayer.setDealerPosition(0); // Bot is not a dealer by default
+    botPlayer.setEnterAmount(tableValueLimit.boot_value * 10);
+    botPlayer.setPlayerAmount(tableValueLimit.boot_value * 10);
     botPlayer.setPlayerPosition(emptyPosition.position);
     botPlayer.setIsActive(true);
+
+    // Mark the position as occupied
     emptyPosition.isPlayerSitting = true;
 
-    // karan: Insert bot into RoomPlayer table before joining
-    if (typeof roomAddPlayer === 'function') {
-        console.log(`[BOT-LOG] Inserting bot ${botId} into RoomPlayer table for room ${roomName}`);
-        roomAddPlayer(roomName, botPlayer.getPlayerObject()).then(() => {
-            playerObjList.push(botPlayer);
-            console.log(`[BOT-LOG] Bot player ${botId} added to playerObjList in room ${roomName}`);
-            io.in(roomName).emit("newPlayerJoin", JSON.stringify({
-                playerId: botPlayer.getPlayerId(),
-                dealerId: 0,
-                status: true,
-                tableAmount: 0
-            }));
-            console.log(`[BOT-LOG] Emitted newPlayerJoin for bot ${botId} in room ${roomName}`);
-            console.log(`[BOT-LOG] Bot player ${botId} added to room ${roomName} at position ${emptyPosition.position}`);
-        });
-    } else {
-        console.log('[BOT-LOG] roomAddPlayer function not found! Bot cannot be added to DB.');
-    }
+    // Add bot to player list
+    playerObjList.push(botPlayer);
 
+    // Emit event to notify room of new player
+    io.in(roomName).emit("newPlayerJoin", JSON.stringify({
+        playerId: botPlayer.getPlayerId(),
+        dealerId: 0,
+        status: true,
+        tableAmount: 0 // Table amount unchanged as game hasn't started
+    }));
+
+    // Log bot addition
+    console.log(`Bot player ${botId} added to room ${roomName} at position ${emptyPosition.position}`);
+
+    // Update RoomPlayer in database
+    const enterRoomPlayer = {
+        player_data: botPlayer.getPlayerObjectId(),
+        room_name: roomName,
+        enter_chips: botPlayer.getEnterAmount(),
+        running_chips: botPlayer.getPlayerAmount()
+    };
+    console.log(enterRoomPlayer, "enterRoomPlayer");
+    common_helper.commonQuery(RoomPlayer, "create", enterRoomPlayer).then((result) => {
+        if (result.status === 1) {
+            common_helper.commonQuery(Room, "findOneAndUpdate", { room_name: roomName }, { $push: { room_players_data: result.data._id } });
+        }
+    });
+
+    // Check if room is now full
     if (playerObjList.length + newPlayerJoinObj.length >= 5) {
-        console.log(`[BOT-LOG] Room ${roomName} is now full after bot addition.`);
         roomIsFull = true;
     }
 }
-
-const fillRoomsWithBots = () => {
-  console.log('[BOT-LOG] Running periodic bot fill for all Teen Patti rooms...');
-  if (!global.app || !global.app.teenPattiRoomObjList) {
-    console.log('[BOT-LOG] teenPattiRoomObjList not found on app/global. Skipping bot fill.');
-    return;
-  }
-  global.app.teenPattiRoomObjList.forEach(roomObj => {
-    if (
-      roomObj &&
-      typeof roomObj.getRoomIsFull === 'function' &&
-      !roomObj.getRoomIsFull() &&
-      typeof roomObj.getIsRoomDelete === 'function' &&
-      !roomObj.getIsRoomDelete()
-    ) {
-      if (
-        typeof roomObj.playerObjList !== 'undefined' &&
-        typeof roomObj.playerSitting !== 'undefined' &&
-        typeof roomObj.newPlayerJoinObj !== 'undefined'
-      ) {
-        console.log(`[BOT-LOG] Checking room ${roomObj.getRoomName()} for missing players...`);
-        addBotPlayer(
-          roomObj.io || null, // pass io if available, else null
-          roomObj.getRoomName(),
-          roomObj.getTableValueLimit(),
-          roomObj.playerObjList,
-          roomObj.playerSitting,
-          roomObj.newPlayerJoinObj,
-          roomObj.getRoomIsFull()
-        );
-      } else {
-        console.log(`[BOT-LOG] Room ${roomObj.getRoomName()} missing playerObjList/playerSitting/newPlayerJoinObj, skipping.`);
-      }
-    } else {
-      if (roomObj && typeof roomObj.getRoomName === 'function') {
-        console.log(`[BOT-LOG] Room ${roomObj.getRoomName()} is full or deleted, skipping.`);
-      }
-    }
-  });
-};
-
-module.exports.fillRoomsWithBots = fillRoomsWithBots;
 }
 
 module.exports = Room
