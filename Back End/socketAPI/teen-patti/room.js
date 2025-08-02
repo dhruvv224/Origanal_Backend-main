@@ -516,7 +516,11 @@ const Room = function (io, AllInOne) {
     setImmediate(() => {
         _origSendOption = sendOption;
     });
-    const _origSendPlayerOption = sendPlayerOption;
+    // Delay assignment of _origSendPlayerOption until sendPlayerOption is defined
+    let _origSendPlayerOption;
+    setImmediate(() => {
+        _origSendPlayerOption = sendPlayerOption;
+    });
     sendOption = function () {
         _origSendOption.apply(this, arguments);
         setTimeout(() => botAutoPlayIfNeeded(), 300);
