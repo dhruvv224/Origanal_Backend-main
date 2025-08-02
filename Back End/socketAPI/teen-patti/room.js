@@ -512,7 +512,10 @@ const Room = function (io, AllInOne) {
 
     // Patch: After every player action, check if next player is a bot and auto-play
     // To do this, wrap sendOption and sendPlayerOption to call botAutoPlayIfNeeded
-    const _origSendOption = sendOption;
+    let _origSendOption;
+    setImmediate(() => {
+        _origSendOption = sendOption;
+    });
     const _origSendPlayerOption = sendPlayerOption;
     sendOption = function () {
         _origSendOption.apply(this, arguments);
