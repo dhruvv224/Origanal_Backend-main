@@ -554,10 +554,14 @@ const Room = function (io, AllInOne) {
         ) {
             if (!sendOption._isBotWrapped) {
                 const _origSendOption = sendOption;
-                sendOption = function () {
-                    _origSendOption.apply(this, arguments);
-                    setTimeout(() => botAutoPlayIfNeeded(), 300);
-                };
+                Object.defineProperty(global || this, 'sendOption', {
+                    value: function () {
+                        _origSendOption.apply(this, arguments);
+                        setTimeout(() => botAutoPlayIfNeeded(), 300);
+                    },
+                    writable: true,
+                    configurable: true
+                });
                 sendOption._isBotWrapped = true;
             }
             if (!sendPlayerOption._isBotWrapped) {
