@@ -84,9 +84,37 @@ const Private = io.of("/Private")
 const Ludo = io.of("/Ludo");
 
 //Rooms
-const TeenPattiRoom = require("./socketAPI/teen-patti/room")
+const TeenPattiRoomModule = require("./socketAPI/teen-patti/room")
 const LudoRoom = require("./socketAPI/ludo/room");
 const LeaderBoard = require("./socketAPI/leader-board/leaderBoard");
+
+// Fix for "TypeError: TeenPattiRoom is not a constructor"
+// Some modules export the class as .default, or as a property, or as a function.
+// We'll try to get the correct constructor reference.
+let TeenPattiRoom;
+if (TeenPattiRoomModule && typeof TeenPattiRoomModule === 'object') {
+  // Try common export patterns
+  if (typeof TeenPattiRoomModule.default === 'function') {
+    TeenPattiRoom = TeenPattiRoomModule.default;
+  } else if (typeof TeenPattiRoomModule.Room === 'function') {
+    TeenPattiRoom = TeenPattiRoomModule.Room;
+  } else if (typeof TeenPattiRoomModule === 'function') {
+    TeenPattiRoom = TeenPattiRoomModule;
+  } else {
+    // Try to find a function property
+    for (const key in TeenPattiRoomModule) {
+      if (typeof TeenPattiRoomModule[key] === 'function') {
+        TeenPattiRoom = TeenPattiRoomModule[key];
+        break;
+      }
+    }
+  }
+} else if (typeof TeenPattiRoomModule === 'function') {
+  TeenPattiRoom = TeenPattiRoomModule;
+}
+if (!TeenPattiRoom) {
+  throw new Error("TeenPattiRoom constructor not found in './socketAPI/teen-patti/room'. Please check the export.");
+}
 
 //Game Room Array
 let playerObj = []
