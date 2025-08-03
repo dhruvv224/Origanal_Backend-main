@@ -2727,6 +2727,7 @@ const Room = function (io, AllInOne) {
     const getPreviousPlayer = () => {
         console.log("---------- FInd Get Previous Player --------- ")
         const currentActivePlayer = activePlayer.getPlayerId()
+        console.log("-----------------------Active players-------------------------",currentActivePlayer)
         let index = playerObjList.findIndex(
             (_p) => _p.getPlayerId() == currentActivePlayer
         )
