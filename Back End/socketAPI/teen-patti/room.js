@@ -2594,7 +2594,7 @@ const Room = function (io, AllInOne) {
         return playerCard
     }
     const getNextPlayer = (dealerPlayerId, isDealer = false) => {
-        console.log("check player details",playerObjList,"---- Find NextPlayer ----");
+        console.log("check player details",playerObjList?.getPlayerObject(),"---- Find NextPlayer ----");
         if (playerObjList.length != 0) {
             if (!isDealer && activePlayer) {
                 dealerPlayerId = activePlayer.getPlayerId()
