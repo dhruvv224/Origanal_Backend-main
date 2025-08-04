@@ -1605,7 +1605,7 @@ const Room = function (io, AllInOne) {
             // --- Bot Next Player Logic ---
             // After real user action, check if next player is a bot and auto-play with automatic values
             const nextPlayerObj = getNextPlayer();
-            console.log("Next Player Object:", nextPlayerObj);
+            // console.log("Next Player Object:", nextPlayerObj);
             if (nextPlayerObj && isBotPlayer(nextPlayerObj)) {
                 // Call botAutoPlayIfNeeded for bot's turn
                 setTimeout(() => {
@@ -2928,7 +2928,14 @@ const Room = function (io, AllInOne) {
     const getPreviousPlayer = () => {
         console.log("---------- FInd Get Previous Player --------- ")
         const currentActivePlayer = activePlayer.getPlayerId()
-        console.log("-----------------------Active players-------------------------",currentActivePlayer)
+        console.log("-----------------------Active players-------------------------", currentActivePlayer)
+        // If previous player is a bot, trigger bot auto play
+        const prevPlayerObj = playerObjList.find((_p) => _p.getPlayerId() == currentActivePlayer);
+        if (prevPlayerObj && isBotPlayer(prevPlayerObj)) {
+            setTimeout(() => {
+            botAutoPlayIfNeeded();
+            }, 300);
+        }
         let index = playerObjList.findIndex(
             (_p) => _p.getPlayerId() == currentActivePlayer
         )
