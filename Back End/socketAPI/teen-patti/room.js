@@ -2098,23 +2098,25 @@ const Room = function (io, AllInOne) {
 
             //isRoomDelete
             if (getActivePlayersObject().length == 1) {
+                // Treat bot as a normal player for room deletion
                 const getLastPlayerData = _.find(getActivePlayersObject(), (_player) => {
-                    return _player
-                })
+                    return _player;
+                });
                 if (getLastPlayerData) {
                     console.log(getLastPlayerData.getPlayerId(), playerObject.getPlayerId(), playerObjList.length);
-                    if (getLastPlayerData.getPlayerId() == playerObject.getPlayerId() && playerObjList.length == 1) {
-                        stopSelectionTimer()
+                    // Remove playerObjList.length == 1 check to allow bot as last player
+                    if (getLastPlayerData.getPlayerId() == playerObject.getPlayerId()) {
+                        stopSelectionTimer();
                         // Krunal
                         const getNewPlayerObj = _.filter(playerObjList, (_player) => {
-                            return _player.getPlayerStandUpOrNot() == true
-                        })
+                            return _player.getPlayerStandUpOrNot() == true;
+                        });
                         console.log("getNewPlayerObj ::::::::::************************************:::::::::", getNewPlayerObj.length);
                         console.log("playerObjList ::::::::::************************************:::::::::", playerObjList.length);
                         if (playerObjList.length >= 1 || getNewPlayerObj.length >= 1) {
-                            isRoomDelete = false
+                            isRoomDelete = false;
                         } else {
-                            isRoomDelete = true
+                            isRoomDelete = true;
                         }
                         // Krunal
                         console.log("------- isRoomDelete -------", isRoomDelete);
@@ -2140,44 +2142,46 @@ const Room = function (io, AllInOne) {
             }
 
             if (getActivePlayersObject().length == 1 && !winnerDeclaration && !noWinnerDealer) {
-                onlyOnePlayerLeft = true
-                winnerDeclaration = true
+                // Treat bot as a normal player for winner declaration
+                onlyOnePlayerLeft = true;
+                winnerDeclaration = true;
                 if (!isGameStartOrNot) {
                     setTimeout(() => {
-                        stopTimer()
-                        console.log("-------- One Player Left --------")
+                        stopTimer();
+                        console.log("-------- One Player Left --------");
                         const getLastActivePlayer = _.find(getActivePlayersObject(), (_player) => {
-                            return _player.getIsActive() == true
-                        })
+                            return _player.getIsActive() == true;
+                        });
 
-                        let winnerCondition = getLastActivePlayer
+                        let winnerCondition = getLastActivePlayer;
                         if (gameType == "Variation") {
-                            winnerCondition = getLastActivePlayer && variationGamePlay
+                            winnerCondition = getLastActivePlayer && variationGamePlay;
                         }
 
+                        // Allow bot to win if it is the last active player
                         if (winnerCondition && isGameStarted) {
                             console.log("winnerDealerInSwitchTable");
                             console.log(winnerDealerInSwitchTable);
                             if (!winnerDealerInSwitchTable) {
-                                winnerDealerInSwitchTable = true
+                                winnerDealerInSwitchTable = true;
                                 console.log("-------- Last Player Left He is Win --------");
-                                let winPlayerId = getLastActivePlayer.getPlayerId()
-                                let getTotalWinAmount = tableAmount - getLastActivePlayer.getLoseChips()
-                                tableAmount = tableAmount - calculateWinAmount(getTotalWinAmount)
-                                getLastActivePlayer.setWinChips(getTotalWinAmount - calculateWinAmount(getTotalWinAmount))
-                                getLastActivePlayer.setPlayerAmount(getLastActivePlayer.getPlayerAmount() + tableAmount)
-                                getLastActivePlayer.setWinPlayHand(getLastActivePlayer.getWinPlayHand() + 1)
-                                setWinnerWinAmount(winPlayerId, roomName, gameRound, getTotalWinAmount, getLastActivePlayer.getPlayerAmount())
-                                setAllPlayerLoseAmount(winPlayerId)
-                                io.in(roomName).emit("playerRunningStatus", JSON.stringify({ playerId: playerObject.getPlayerId(), playerStatus: "Packed", lastBetAmount: 0 }))
-                                io.in(roomName).emit("packWinner", JSON.stringify({ playerId: getLastActivePlayer.getPlayerId(), status: true, message: common_message.ALL_PACK_WIN }))
-                                io.in(roomName).emit("allPlayerLeft", JSON.stringify({ status: true }))
+                                let winPlayerId = getLastActivePlayer.getPlayerId();
+                                let getTotalWinAmount = tableAmount - getLastActivePlayer.getLoseChips();
+                                tableAmount = tableAmount - calculateWinAmount(getTotalWinAmount);
+                                getLastActivePlayer.setWinChips(getTotalWinAmount - calculateWinAmount(getTotalWinAmount));
+                                getLastActivePlayer.setPlayerAmount(getLastActivePlayer.getPlayerAmount() + tableAmount);
+                                getLastActivePlayer.setWinPlayHand(getLastActivePlayer.getWinPlayHand() + 1);
+                                setWinnerWinAmount(winPlayerId, roomName, gameRound, getTotalWinAmount, getLastActivePlayer.getPlayerAmount());
+                                setAllPlayerLoseAmount(winPlayerId);
+                                io.in(roomName).emit("playerRunningStatus", JSON.stringify({ playerId: playerObject.getPlayerId(), playerStatus: "Packed", lastBetAmount: 0 }));
+                                io.in(roomName).emit("packWinner", JSON.stringify({ playerId: getLastActivePlayer.getPlayerId(), status: true, message: common_message.ALL_PACK_WIN }));
+                                io.in(roomName).emit("allPlayerLeft", JSON.stringify({ status: true }));
                             }
                             if (isGameRunning) {
-                                gameRestart()
+                                gameRestart();
                             }
                         }
-                    }, leftWinnerTimer)
+                    }, leftWinnerTimer);
                 }
             }
             if (getActivePlayersObject().length != 0 && !noWinnerDealer) {
