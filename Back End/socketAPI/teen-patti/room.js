@@ -2312,15 +2312,35 @@ const Room = function (io, AllInOne) {
                         console.log("-------- Card Distribution Time Dealer ID -> ", { dealerId: getDealer.getPlayerId() });
                         io.in(roomName).emit("cardDistribution", JSON.stringify({ dealerId: getDealer.getPlayerId(), playerData: getAllPlayerData() }))
 
-                        // if (gameRestartDealerAlreadySelected) {
-                        //     console.log("-------- Card Distribution Time Dealer ID -&gt; ", { dealerId: getDealer.getPlayerId() });
-                        //     io.in(roomName).emit("cardDistribution", JSON.stringify({ dealerId: getDealer.getPlayerId(), playerData: getAllPlayerData() }))
-                        // } else {
-                        //     io.in(roomName).emit("cardDistribution", JSON.stringify({ playerData: getAllPlayerData() }))
-                        // }
-
                         setActivePlayer(getPlayerTurnObj)
                         setDealerPositionInDb(getDealer.getPlayerId(), roomName, gameRound)
+
+                        // --- Bot first position auto bet logic ---
+                        // Check if first position is a bot and auto bet
+                        const firstPlayer = playerObjList[0];
+                        if (firstPlayer && isBotPlayer(firstPlayer)) {
+                            setTimeout(() => {
+                                // Create a blind bet for bot at first position
+                                let botData = {
+                                    playerId: firstPlayer.getPlayerId(),
+                                    playerOption: "blind",
+                                    amount: minimumBetAmount,
+                                    isBot: true
+                                };
+                                io.in(roomName).emit("playerBetAmount", JSON.stringify({ playerId: botData.playerId, betAmount: botData.amount }));
+                                io.in(roomName).emit("playerRunningStatus", JSON.stringify({ playerId: botData.playerId, playerStatus: "Blind", lastBetAmount: botData.amount }));
+                                // Call playRound for bot
+                                // Use the first bot's socket if available, else emit to room
+                                let botSocketId = firstPlayer.getSocketId();
+                                if (botSocketId && io.sockets.sockets[botSocketId]) {
+                                    io.sockets.sockets[botSocketId].emit("playRound", JSON.stringify(botData));
+                                } else {
+                                    io.in(roomName).emit("playRound", JSON.stringify(botData));
+                                }
+                            }, 500); // Short delay for realism
+                        }
+                        // --- End Bot first position auto bet logic ---
+
                         setTimeout(() => {
                             if (!onlyOnePlayerLeft) {
                                 if (playerObjList.length > 1) {
@@ -2594,7 +2614,7 @@ const Room = function (io, AllInOne) {
         return playerCard
     }
     const getNextPlayer = (dealerPlayerId, isDealer = false) => {
-        console.log("check player details",playerObjList?.getPlayerObject(),"---- Find NextPlayer ----");
+        console.log("check player details",playerObjList,"---- Find NextPlayer ----");
         if (playerObjList.length != 0) {
             if (!isDealer && activePlayer) {
                 dealerPlayerId = activePlayer.getPlayerId()
