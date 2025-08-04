@@ -149,7 +149,13 @@ const Room = function (io, AllInOne) {
         );
     }
 
-    function addBotPlayer(io, roomName, tableValueLimit, playerObjList, playerSitting, newPlayerJoinObj, roomIsFull) {
+    // List of bot names to choose from
+    const BOT_NAMES = [
+        "Ravi", "Priya", "Amit", "Sneha", "Rahul", "Neha", "Vikas", "Pooja", "Arjun", "Simran",
+        "Karan", "Anjali", "Manish", "Ritu", "Suresh", "Meena", "Deepak", "Nisha", "Vivek", "Shweta"
+    ];
+
+    async function addBotPlayer(io, roomName, tableValueLimit, playerObjList, playerSitting, newPlayerJoinObj, roomIsFull) {
         console.log('[BOT] Checking if bot can be added...');
         if (roomIsFull || playerObjList.length + newPlayerJoinObj.length >= 5) {
             console.log('[BOT] Room is full, cannot add bot.');
@@ -170,30 +176,45 @@ const Room = function (io, AllInOne) {
         let botId, botName, botChips, botAvatar, botProfilePic, botIsStatic = false;
         if (botPlayerData) {
             botId = botPlayerData.player_id || botPlayerData.email || ('BOT_' + Date.now());
-            botName = botPlayerData.name || 'TeenPattiBot';
+            // Use bot name from static data if available, else random
+            botName = botPlayerData.name || BOT_NAMES[Math.floor(Math.random() * BOT_NAMES.length)];
             botChips = botPlayerData.chips || (tableValueLimit.boot_value * 10);
             botAvatar = botPlayerData.avatar_id || 1;
             botProfilePic = botPlayerData.profile_pic || '';
             botIsStatic = true;
         } else {
             botId = 'BOT_' + Date.now();
-            botName = 'TeenPattiBot';
+            // Pick a random name for the bot
+            botName = BOT_NAMES[Math.floor(Math.random() * BOT_NAMES.length)];
             botChips = tableValueLimit.boot_value * 10;
             botAvatar = 1;
             botProfilePic = '';
         }
 
+        // Save bot to Players table if not exists
+        let botPlayerDoc = await Players.findOne({ player_id: botId });
+        if (!botPlayerDoc) {
+            botPlayerDoc = await Players.create({
+                player_id: botId,
+                name: botName,
+                chips: botChips,
+                avatar_id: botAvatar,
+                profile_pic: botProfilePic,
+                isBot: true
+            });
+        }
+
         const botPlayer = new Player(io);
         botPlayer.setRoomName(roomName);
         botPlayer.setPlayerId(botId);
-        botPlayer.setPlayerObjectId(botId);
+        botPlayer.setPlayerObjectId(botPlayerDoc._id);
         botPlayer.setSocketId('BOT_SOCKET_' + Date.now());
         botPlayer.setPlayerObject({
             name: botName,
             avatar_id: botAvatar,
             profile_pic: botProfilePic,
             chips: botChips,
-            _id: botId,
+            _id: botPlayerDoc._id,
             isBot: true
         });
         botPlayer.setDealerPosition(0);
@@ -214,10 +235,9 @@ const Room = function (io, AllInOne) {
             tableAmount: 0
         }));
 
-        const mongoose = require('mongoose');
-        const botObjectId = new mongoose.Types.ObjectId();
+        // Save bot to RoomPlayer table
         const enterRoomPlayer = {
-            player_data: botObjectId,
+            player_data: botPlayerDoc._id,
             room_name: roomName,
             enter_chips: botPlayer.getEnterAmount(),
             running_chips: botPlayer.getPlayerAmount()
