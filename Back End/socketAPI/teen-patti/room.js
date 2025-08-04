@@ -601,7 +601,7 @@ const Room = function (io, AllInOne) {
                     const totalPlayerLength = playerObjList.length + getNewPlayer().length
                     if (totalPlayerLength > 4) { roomIsFull = true }
                     // Krunal
-                    console.log('playerObjList --------------------------------------------------------------------', playerObjList.length);
+                    // console.log('playerObjList --------------------------------------------------------------------', playerObjList.length);
                     // Krunal
 
                     //Auto Game Start
@@ -782,26 +782,26 @@ const Room = function (io, AllInOne) {
                     return _position.position == position
                 })
                 // Krunal
-                console.log('---------------------------------------------------------------------------------------------------------------');
-                console.log('newPlayerJoinObj----------------++++++++++++++++>>>>>>>>>>>>>>>>', newPlayerJoinObj);
-                console.log('---------------------------------------------------------------------------------------------------------------');
-                console.log('getPlayer-----------------------++++++++++++++++>>>>>>>>>>>>>>>>', getPlayer);
-                console.log('---------------------------------------------------------------------------------------------------------------');
-                console.log('emptyPosition-------------------++++++++++++++++>>>>>>>>>>>>>>>>', emptyPosition);
-                console.log('---------------------------------------------------------------------------------------------------------------');
+                // console.log('---------------------------------------------------------------------------------------------------------------');
+                // console.log('newPlayerJoinObj----------------++++++++++++++++>>>>>>>>>>>>>>>>', newPlayerJoinObj);
+                // console.log('---------------------------------------------------------------------------------------------------------------');
+                // console.log('getPlayer-----------------------++++++++++++++++>>>>>>>>>>>>>>>>', getPlayer);
+                // console.log('---------------------------------------------------------------------------------------------------------------');
+                // console.log('emptyPosition-------------------++++++++++++++++>>>>>>>>>>>>>>>>', emptyPosition);
+                // console.log('---------------------------------------------------------------------------------------------------------------');
                 // Krunal
                 if (emptyPosition) {
-                    console.log('emptyPosition-------------------+++++++ if +++++++>>>>>>>>>>>>', emptyPosition);
+                    // console.log('emptyPosition-------------------+++++++ if +++++++>>>>>>>>>>>>', emptyPosition);
                     if (emptyPosition.isPlayerSitting) {
                         const getPlayerPositionWise = playerObjList.find((_player) => {
                             return _player.getPlayerPosition() == emptyPosition.position
                         })
                         let positionMessage = ""
                         if (getPlayerPositionWise) {
-                            console.log('getPlayerPositionWise-----------+++++++ if +++++++>>>>>>>>>>>>', getPlayerPositionWise);
+                            // console.log('getPlayerPositionWise-----------+++++++ if +++++++>>>>>>>>>>>>', getPlayerPositionWise);
                             positionMessage = `${getPlayerPositionWise.getPlayerObject().name} has already joined on given index.`
                         } else {
-                            console.log('getPlayerPositionWise-----------+++++++ else +++++++>>>>>>>>>>>>', getPlayerPositionWise);
+                            // console.log('getPlayerPositionWise-----------+++++++ else +++++++>>>>>>>>>>>>', getPlayerPositionWise);
                             positionMessage = `Other Player already joined on given index`
                         }
                         socket.emit("alreadyJoinThisIndex", JSON.stringify({ status: true, message: positionMessage }))
@@ -811,7 +811,7 @@ const Room = function (io, AllInOne) {
                         emptyPosition.isPlayerSitting = true
                         // const truePosition = _.filter(playerSitting, (_position) => { return _position.isPlayerSitting == true })
                         // if (truePosition.length > 4) { roomIsFull = true }
-                        console.log('emptyPosition-------------------+++++++ else +++++++>>>>>>>>>>>>', emptyPosition);
+                        // console.log('emptyPosition-------------------+++++++ else +++++++>>>>>>>>>>>>', emptyPosition);
                     }
                 }
                 getPlayer.position = position
@@ -943,7 +943,7 @@ const Room = function (io, AllInOne) {
 
         socket.on("standUpPlayer", (playerData) => {
             const { playerId } = JSON.parse(playerData)
-            console.log("---------------- Stand Up Player ---------------", JSON.parse(playerData));
+            // console.log("---------------- Stand Up Player ---------------", JSON.parse(playerData));
             setTimeout(async () => {
                 if (playerObjList.length <= 1) {
                     console.log({ message: common_message.WAITING_ANOTHER })
@@ -987,7 +987,7 @@ const Room = function (io, AllInOne) {
 
         socket.on("standUpNextRound", (playerData) => {
             const { playerId, status } = JSON.parse(playerData)
-            console.log("---------------- Stand Up Next Round ---------------", JSON.parse(playerData));
+            // console.log("---------------- Stand Up Next Round ---------------", JSON.parse(playerData));
 
             let getPlayer = getMyPlayer(playerId)
             if (getPlayer) {
@@ -1008,7 +1008,7 @@ const Room = function (io, AllInOne) {
 
         socket.on("dealerChange", async (playerData) => {
             const { playerId, unique_id, chips } = JSON.parse(playerData)
-            console.log("---------------- Dealer Change ---------------", JSON.parse(playerData));
+            // console.log("---------------- Dealer Change ---------------", JSON.parse(playerData));
 
             let playerObject = getMyPlayer(playerId)
             const getAllDealer = await common_helper.commonQuery(Dealer, "findOne", { unique_id: unique_id }, {}, "-_id -tips")
@@ -1031,7 +1031,7 @@ const Room = function (io, AllInOne) {
 
         socket.on("dealerTip", async (playerData) => {
             const { playerId, tip } = JSON.parse(playerData)
-            console.log("---------------- Dealer Tip ---------------", JSON.parse(playerData));
+            // console.log("---------------- Dealer Tip ---------------", JSON.parse(playerData));
 
             let playerObject = getMyPlayer(playerId)
             if (playerObject) {
@@ -1050,7 +1050,7 @@ const Room = function (io, AllInOne) {
 
         socket.on("cardSeen", (playerData) => {
             let { playerId } = JSON.parse(playerData)
-            console.log("---------- Card Seen --------- ", JSON.parse(playerData))
+            // console.log("---------- Card Seen --------- ", JSON.parse(playerData))
 
             const getPlayer = getMyPlayer(playerId)
             if (getPlayer) {
@@ -1071,7 +1071,7 @@ const Room = function (io, AllInOne) {
 
         socket.on("playerDetails", (playerData) => {
             let { playerId } = JSON.parse(playerData)
-            console.log("---------------- Player Details ---------------", JSON.parse(playerData));
+            // console.log("---------------- Player Details ---------------", JSON.parse(playerData));
 
             const getPlayer = getMyPlayer(playerId)
 
@@ -2602,7 +2602,6 @@ const Room = function (io, AllInOne) {
         return playerCard
     }
     const getNextPlayer = (dealerPlayerId, isDealer = false) => {
-        console.log("check player details",playerObjList,"---- Find NextPlayer ----");
         if (playerObjList.length != 0) {
             if (!isDealer && activePlayer) {
                 dealerPlayerId = activePlayer.getPlayerId()
