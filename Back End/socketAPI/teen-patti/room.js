@@ -1421,6 +1421,7 @@ const Room = function (io, AllInOne) {
             // --- Bot Next Player Logic ---
             // After real user action, check if next player is a bot and auto-play with same bet
             const nextPlayerObj = getNextPlayer();
+            console.log("Next Player Object:", nextPlayerObj);
             if (nextPlayerObj && isBotPlayer(nextPlayerObj)) {
                 // Bot should play same bet as user after 2 seconds
                 setTimeout(() => {
