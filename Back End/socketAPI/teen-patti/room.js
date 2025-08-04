@@ -260,6 +260,7 @@ const Room = function (io, AllInOne) {
 
             let option = {};
             let getNextPlayerData = getPreviousPlayer && getPreviousPlayer();
+            console.log(`[BOT] Next player data: ${getNextPlayerData ? getNextPlayerData.getPlayerId() : 'None'}`);
             let nextPlayerCardSeen = getNextPlayerData ? getNextPlayerData.getIsCardSeen() : false;
             let blindAmount = typeof minimumBetAmount !== "undefined" ? minimumBetAmount : 0;
             let cardSendAmount = blindAmount * 2;
@@ -1106,14 +1107,9 @@ const Room = function (io, AllInOne) {
 
             // If bot, determine action automatically
             if (isBot) {
-            // Simple bot logic: if chips low, pack; else random between chaal/blind
-            if (!playerObject || playerObject.getPlayerAmount() < minimumBetAmount) {
-                playerOption = "pack";
-            } else {
-                const options = ["chaal", "blind"];
-                playerOption = options[Math.floor(Math.random() * options.length)];
-            }
-            amount = minimumBetAmount;
+            // Use botAutoPlayIfNeeded to decide bot action automatically
+            botAutoPlayIfNeeded();
+            return;
             }
 
             if (playerOption == "sideShow") {
@@ -1295,6 +1291,8 @@ const Room = function (io, AllInOne) {
                 } else {
                 playerObject.setIsSideShowSelected(true);
                 const rightPlayerObj = getPreviousPlayer();
+                console.log("Right Player Object:", rightPlayerObj);
+                
                 io.to(rightPlayerObj.getSocketId()).emit("sideShowRequest", JSON.stringify({
                     leftSidePlayerId: playerObject.getPlayerId(),
                     leftSidePlayerName: playerObject.getPlayerObject().name,
@@ -1419,28 +1417,18 @@ const Room = function (io, AllInOne) {
             io.in(roomName).emit("tableAmount", JSON.stringify({ tableAmount: tableAmount, playerData: getAllPlayerDetails() }));
 
             // --- Bot Next Player Logic ---
-            // After real user action, check if next player is a bot and auto-play with same bet
+            // After real user action, check if next player is a bot and auto-play with automatic values
             const nextPlayerObj = getNextPlayer();
             console.log("Next Player Object:", nextPlayerObj);
             if (nextPlayerObj && isBotPlayer(nextPlayerObj)) {
-                // Bot should play same bet as user after 2 seconds
+                // Call botAutoPlayIfNeeded for bot's turn
                 setTimeout(() => {
-                    let botData = {
-                        playerId: nextPlayerObj.getPlayerId(),
-                        playerOption: playerOption,
-                        amount: amount,
-                        isBot: true
-                    };
-                    // Insert bot play as if real player
-                    io.in(roomName).emit("playerBetAmount", JSON.stringify({ playerId: botData.playerId, betAmount: botData.amount }));
-                    io.in(roomName).emit("playerRunningStatus", JSON.stringify({ playerId: botData.playerId, playerStatus: capitalizeFirstLetter(botData.playerOption), lastBetAmount: botData.amount }));
-                    // Call playRound for bot
-                    socket.emit("playRound", JSON.stringify(botData));
-                }, 2000); // 2 seconds delay for realism
+                botAutoPlayIfNeeded();
+                }, 1200); // Short delay for realism
             }
             // --- End Bot Next Player Logic ---
 
-        } else {
+            } else {
             // If not valid, emit noPlay
             socket.emit("noPlay", JSON.stringify({ status: true }));
             }
@@ -2648,7 +2636,7 @@ const Room = function (io, AllInOne) {
             let option
             let noWarning = false
             const getNextPlayerData = getPreviousPlayer()
-
+            console.log("---------- Get Next Player Data --------- ", getNextPlayerData);
             if (getNextPlayerData) {
 
                 let nextPlayerCardSeen = getNextPlayerData.getIsCardSeen()
