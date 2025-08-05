@@ -765,6 +765,9 @@ function botAutoPlayIfNeeded() {
                     playerObjList.push(myPlayer);
                     const totalPlayerLength = playerObjList.length + getNewPlayer().length
                     if (totalPlayerLength > 4) { roomIsFull = true }
+                    if (!roomIsFull && countBots(playerObjList) < 2) {
+                    addBotPlayer(io, roomName, tableValueLimit, playerObjList, playerSitting, newPlayerJoinObj, roomIsFull);
+                    }
                     // Krunal
                     // console.log('playerObjList --------------------------------------------------------------------', playerObjList.length);
                     // Krunal
