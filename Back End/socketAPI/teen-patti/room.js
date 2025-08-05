@@ -629,6 +629,8 @@ const Room = function (io, AllInOne) {
                                 }
                             }
                         }, 500)
+                        console.log("check here call this function onePlayerStartTimer() if only one player left");
+                        onePlayerStartTimer()
                     } else {
                         console.log({ message: common_message.WAITING_ANOTHER })
                         io.in(roomName).emit("waitingPlayer", JSON.stringify({ message: common_message.WAITING_ANOTHER }))
