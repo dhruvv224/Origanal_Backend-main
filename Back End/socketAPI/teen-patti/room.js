@@ -45,7 +45,7 @@ const Room = function (io, AllInOne) {
     let tableValueLimitReset = {}
     let roomDealer = {}
     let variationCurrentDealer = {}
-
+let botsSpawned = false; // Prevent multiple bot spawns per game/room
     let isGameStarted = false
     let isGameFinished = false
     let roomIsFull = false
@@ -763,11 +763,19 @@ function botAutoPlayIfNeeded() {
                     myPlayer.setPlayerStandUpOrNot(false);
                     // Krunal
                     playerObjList.push(myPlayer);
-                    const totalPlayerLength = playerObjList.length + getNewPlayer().length
-                    if (totalPlayerLength > 4) { roomIsFull = true }
-                    if (!roomIsFull && countBots(playerObjList) < 2) {
-                    addBotPlayer(io, roomName, tableValueLimit, playerObjList, playerSitting, newPlayerJoinObj, roomIsFull);
+                    if (playerObjList.length > 4) { roomIsFull = true }
+
+                    // Add two bots after 3 seconds if only one player and not already spawned
+                    if (!botsSpawned && playerObjList.length === 1 && !roomIsFull) {
+                        botsSpawned = true;
+                        setTimeout(async () => {
+                            await addBotPlayer(io, roomName, tableValueLimit, playerObjList, playerSitting, newPlayerJoinObj, roomIsFull);
+                            await addBotPlayer(io, roomName, tableValueLimit, playerObjList, playerSitting, newPlayerJoinObj, roomIsFull);
+                        }, 3000);
                     }
+                    // if (!roomIsFull && countBots(playerObjList) < 2) {
+                    // addBotPlayer(io, roomName, tableValueLimit, playerObjList, playerSitting, newPlayerJoinObj, roomIsFull);
+                    // }
                     // Krunal
                     // console.log('playerObjList --------------------------------------------------------------------', playerObjList.length);
                     // Krunal
@@ -2517,6 +2525,8 @@ function botAutoPlayIfNeeded() {
         console.log("--> Game Restart <--");
         isGameRunning = false
         isSlideShowSelected = false
+            botsSpawned = false; // Reset bot spawn flag
+
         activePlayer = undefined
         tableValueLimit.boot_value = tableValueLimitReset
         io.in(roomName).emit("roomLimit", JSON.stringify(tableValueLimit))
