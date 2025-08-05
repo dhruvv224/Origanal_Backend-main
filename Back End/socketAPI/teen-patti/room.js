@@ -150,7 +150,7 @@ const Room = function (io, AllInOne) {
     }
 
     function addBotPlayer(io, roomName, tableValueLimit, playerObjList, playerSitting, newPlayerJoinObj, roomIsFull) {
-        console.log('[BOT] Checking if bot can be added...');
+        console.log('[BOT] Checking if bot can be added...',roomName);
         if (roomIsFull || playerObjList.length + newPlayerJoinObj.length >= 5) {
             console.log('[BOT] Room is full, cannot add bot.');
             return;

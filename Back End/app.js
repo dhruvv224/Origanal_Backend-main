@@ -758,7 +758,7 @@ console.log("playerId", playerId, "switchTable", switchTable);
                 teenPattiRoomObjList.push(myTeenPattiRoom)
               })
 
-            console.log("----------------------------------------------------------- createRoom");
+            console.log("----------------------------------------------------------- createRoom",generatePublicRoomName);
           } else {
             console.log("join roommmmmm---->>>>", publicTeenPattiRoom);
             if (publicTeenPattiRoom) {
