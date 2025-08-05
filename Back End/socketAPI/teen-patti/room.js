@@ -803,16 +803,18 @@ function botAutoPlayIfNeeded() {
                     if (playerObjList.length > 4) { roomIsFull = true }
 
                     // Add two bots after 3 seconds if only one player and not already spawned
+                    // If there is exactly one player in the room, add a bot so there are two players total
                     if (!botsSpawned && playerObjList.length === 1 && !roomIsFull) {
                         botsSpawned = true;
                         setTimeout(async () => {
-                            await addBotPlayer(io, roomName, tableValueLimit, playerObjList, playerSitting, newPlayerJoinObj, roomIsFull);
-                            await addBotPlayer(io, roomName, tableValueLimit, playerObjList, playerSitting, newPlayerJoinObj, roomIsFull);
+                            // Only add bot if still only one player (not counting bots)
+                            const humanPlayers = playerObjList.filter(p => !isBotPlayer(p));
+                            if (humanPlayers.length === 1 && playerObjList.length === 1) {
+                                await addBotPlayer(io, roomName, tableValueLimit, playerObjList, playerSitting, newPlayerJoinObj, roomIsFull);
+                            }
                         }, 3000);
                     }
-                    // if (!roomIsFull && countBots(playerObjList) < 2) {
-                    // addBotPlayer(io, roomName, tableValueLimit, playerObjList, playerSitting, newPlayerJoinObj, roomIsFull);
-                    // }
+
                     // Krunal
                     // console.log('playerObjList --------------------------------------------------------------------', playerObjList.length);
                     // Krunal
@@ -3165,7 +3167,11 @@ function botAutoPlayIfNeeded() {
         onePlayerInterval = setInterval(() => {
             onePlayerTime--
             console.log("One Player Timer", onePlayerTime);
-            addBotPlayer(io, roomName, tableValueLimit, playerObjList, playerSitting, newPlayerJoinObj, roomIsFull)
+            // If only one human player is left in the room, add a bot
+            const humanPlayers = playerObjList.filter(p => !isBotPlayer(p));
+            if (humanPlayers.length === 1 && playerObjList.length === 1) {
+                addBotPlayer(io, roomName, tableValueLimit, playerObjList, playerSitting, newPlayerJoinObj, roomIsFull);
+            }
             if (playerObjList.length > 1 || playerObjList.length == 0) {
                 onePlayerStopTimer()
             }
