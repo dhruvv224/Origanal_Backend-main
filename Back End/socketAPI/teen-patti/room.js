@@ -304,14 +304,6 @@ function botAutoPlayIfNeeded() {
 
             console.log(`[BOT] Bot turn: ${activePlayer.getPlayerObject().name} (${activePlayer.getPlayerId()})`);
 
-            let option = {};
-            let getNextPlayerData = getPreviousPlayer && getPreviousPlayer();
-            let nextPlayerCardSeen = getNextPlayerData ? getNextPlayerData.getIsCardSeen() : false;
-            let blindAmount = typeof minimumBetAmount !== "undefined" ? minimumBetAmount : 0;
-            let cardSendAmount = blindAmount * 2;
-            let playerAmount = getNextPlayerData ? getNextPlayerData.betAmount.amount : blindAmount;
-            let maxBetAmount = (typeof tableValueLimit !== "undefined" && tableValueLimit && tableValueLimit.max_bat) ? tableValueLimit.max_bat : 0;
-
             if (playerAmount == 0) playerAmount = blindAmount;
             if (activePlayer.getIsCardSeen && activePlayer.getIsCardSeen()) playerAmount = cardSendAmount;
 
