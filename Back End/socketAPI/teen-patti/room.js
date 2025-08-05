@@ -371,7 +371,14 @@ function botAutoPlayIfNeeded() {
 
         // --- Improved bot decision ---
         // Add more randomness and avoid instant pack unless really low chips
-        if (activePlayer.getPlayerAmount && activePlayer.getPlayerAmount() < option.amount) {
+        // Bot decision logic based on game round and card seen status
+        if (gameRound === 1) {
+            botAction = "blind";
+        } else if (activePlayer.getIsCardSeen && activePlayer.getIsCardSeen()) {
+            // After bot has seen the card, avoid blind, prefer chaal/show/pack
+            const actions = ["chaal", "show", "pack"];
+            botAction = actions[Math.floor(Math.random() * actions.length)];
+        } else if (activePlayer.getPlayerAmount && activePlayer.getPlayerAmount() < option.amount) {
             botAction = Math.random() < 0.8 ? "pack" : "blind"; // 80% pack if low chips
         } else if (option.show && getActivePlayersObject && getActivePlayersObject().length == 2) {
             botAction = Math.random() < 0.5 ? "show" : "chaal";
