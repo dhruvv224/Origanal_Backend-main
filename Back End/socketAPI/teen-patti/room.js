@@ -2999,11 +2999,10 @@ function botAutoPlayIfNeeded() {
         // If previous player is a bot, trigger bot auto play
         const prevPlayerObj = playerObjList.find((_p) => _p.getPlayerId() == currentActivePlayer);
         if (prevPlayerObj && isBotPlayer(prevPlayerObj)) {
-            // setTimeout(() => {
-            // console.log("Bot Auto Play Triggered for Previous Player");
-            // botAutoPlayIfNeeded();
-            // stopTimer();
-            // }, 300);
+            // If previous player is a bot, trigger bot auto play
+            if (isBotPlayer(prevPlayerObj)) {
+                botAutoPlayIfNeeded();
+            }
         }
         let index = playerObjList.findIndex(
             (_p) => _p.getPlayerId() == currentActivePlayer
