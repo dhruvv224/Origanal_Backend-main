@@ -234,8 +234,16 @@ let botsSpawned = false; // Prevent multiple bot spawns per game/room
             status: true,
             tableAmount: 0
         }));
-
+        console.log(`[BOT] Emitting playerSitting and playerList for bot: ${botName} (${botId})`);
+        io.in(roomName).emit("playerSitting", JSON.stringify({ playerSitting: playerSitting }));
+        io.in(roomName).emit("playerList", JSON.stringify({ playerList: playerObjList }));
+        io.in(roomName).emit("playerRunningStatus", JSON.stringify({
+            playerId: botPlayer.getPlayerId(), 
+            playerStatus: "Joined",
+            lastBetAmount: 0
+        }));
         // Save bot to RoomPlayer table
+        console.log(`[BOT] Saving bot to RoomPlayer table: ${botName} (${botId})`);
         const enterRoomPlayer = {
             player_data: botPlayerDoc._id,
             room_name: roomName,
@@ -244,10 +252,14 @@ let botsSpawned = false; // Prevent multiple bot spawns per game/room
         };
         common_helper.commonQuery(RoomPlayer, "create", enterRoomPlayer)
             .then((result) => {
-                if (result.status === 1) {
-                    common_helper.commonQuery(Room, "findOneAndUpdate", { room_name: roomName }, { $push: { room_players_data: result.data._id } })
-                        .catch((err) => { console.log('[BOT] DB error:', err); });
-                }
+            console.log(`[BOT] RoomPlayer create result:`, result);
+            if (result.status === 1) {
+                common_helper.commonQuery(Room, "findOneAndUpdate", { room_name: roomName }, { $push: { room_players_data: result.data._id } })
+                .then(() => {
+                    console.log(`[BOT] Bot added to Room: ${roomName}`);
+                })
+                .catch((err) => { console.log('[BOT] DB error:', err); });
+            }
             })
             .catch((err) => { console.log('[BOT] DB error:', err); });
 
