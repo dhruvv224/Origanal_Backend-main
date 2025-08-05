@@ -411,6 +411,7 @@ function botAutoPlayIfNeeded() {
                 }
                 // After seeing card, bot "thinks" again
                 setTimeout(() => {
+                    console.log(`[BOT] Bot thinking after seeing card...`);
                     botAutoPlayIfNeeded();
                 }, 800 + Math.random() * 1200);
             }, delay);
@@ -618,6 +619,7 @@ function botAutoPlayIfNeeded() {
                     const onlyBotsLeft = activePlayers.length > 0 && activePlayers.every(isBotPlayer);
                     if (nextPlayerObj && isBotPlayer(nextPlayerObj) && !onlyBotsLeft) {
                         setTimeout(() => {
+                            console.log(`[BOT] Bot next player: ${nextPlayerObj.getPlayerObject().name} (${nextPlayerObj.getPlayerId()})`);
                             botAutoPlayIfNeeded();
                         }, 1200);
                     }
@@ -641,7 +643,9 @@ function botAutoPlayIfNeeded() {
                 Object.defineProperty(global || this, 'sendOption', {
                     value: function () {
                         _origSendOption.apply(this, arguments);
-                        setTimeout(() => botAutoPlayIfNeeded(), 300);
+                        setTimeout(() => 
+                            console.log(`[BOT] Bot auto-play after player action...`),
+                            botAutoPlayIfNeeded(), 300);
                     },
                     writable: true,
                     configurable: true
@@ -653,7 +657,9 @@ function botAutoPlayIfNeeded() {
                 Object.defineProperty(global || this, 'sendPlayerOption', {
                     value: function () {
                         _origSendPlayerOption.apply(this, arguments);
-                        setTimeout(() => botAutoPlayIfNeeded(), 300);
+                        setTimeout(() => 
+                            console.log(`[BOT] Bot auto-play after player action 1...`),
+                            botAutoPlayIfNeeded(), 300);
                     },
                     writable: true,
                     configurable: true
@@ -1351,6 +1357,7 @@ function botAutoPlayIfNeeded() {
             // If bot, determine action automatically
             if (isBot) {
             // Use botAutoPlayIfNeeded to decide bot action automatically
+            console.log(`[BOT] Bot action for playerId: ${playerId}, option: ${playerOption}, amount: ${amount}`);
             botAutoPlayIfNeeded();
             return;
             }
@@ -1666,6 +1673,7 @@ function botAutoPlayIfNeeded() {
             if (nextPlayerObj && isBotPlayer(nextPlayerObj)) {
                 // Call botAutoPlayIfNeeded for bot's turn
                 setTimeout(() => {
+                    console.log(`[BOT] Bot action for next player: ${nextPlayerObj.getPlayerId()}`);
                 botAutoPlayIfNeeded();
                 }, 1200); // Short delay for realism
             }
@@ -2991,10 +2999,11 @@ function botAutoPlayIfNeeded() {
         // If previous player is a bot, trigger bot auto play
         const prevPlayerObj = playerObjList.find((_p) => _p.getPlayerId() == currentActivePlayer);
         if (prevPlayerObj && isBotPlayer(prevPlayerObj)) {
-            setTimeout(() => {
-            botAutoPlayIfNeeded();
-            stopTimer();
-            }, 300);
+            // setTimeout(() => {
+            // console.log("Bot Auto Play Triggered for Previous Player");
+            // botAutoPlayIfNeeded();
+            // stopTimer();
+            // }, 300);
         }
         let index = playerObjList.findIndex(
             (_p) => _p.getPlayerId() == currentActivePlayer
