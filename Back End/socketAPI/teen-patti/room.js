@@ -2990,6 +2990,7 @@ function botAutoPlayIfNeeded() {
         if (prevPlayerObj && isBotPlayer(prevPlayerObj)) {
             setTimeout(() => {
             botAutoPlayIfNeeded();
+            stopTimer();
             }, 300);
         }
         let index = playerObjList.findIndex(
