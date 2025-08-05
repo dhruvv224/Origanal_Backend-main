@@ -420,11 +420,15 @@ function botAutoPlayIfNeeded() {
             console.log(`[BOT] Playing round: option=${playerOption}, amount=${amount}`);
 
             if (Room && typeof Room.prototype._simulateBotPlayRound === "function") {
-                Room.prototype._simulateBotPlayRound.call(this, {
-                    playerId: activePlayer.getPlayerId(),
-                    playerOption,
-                    amount
-                });
+                if (activePlayer && typeof activePlayer.getPlayerId === "function") {
+                    Room.prototype._simulateBotPlayRound.call(this, {
+                        playerId: activePlayer.getPlayerId(),
+                        playerOption,
+                        amount
+                    });
+                } else {
+                    console.log('[BOT] Error: activePlayer is undefined or invalid in botAutoPlayIfNeeded.');
+                }
             } else {
                 console.log('[BOT] _simulateBotPlayRound not found.');
             }
