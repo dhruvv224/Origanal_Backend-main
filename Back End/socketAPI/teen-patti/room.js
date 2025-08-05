@@ -156,7 +156,7 @@ let botsSpawned = false; // Prevent multiple bot spawns per game/room
     ];
 
     async function addBotPlayer(io, roomName, tableValueLimit, playerObjList, playerSitting, newPlayerJoinObj, roomIsFull) {
-        console.log('[BOT] Checking if bot can be added...');
+        console.log('[BOT] Checking if bot can be added...',roomName);
         if (roomIsFull || playerObjList.length + newPlayerJoinObj.length >= 5) {
             console.log('[BOT] Room is full, cannot add bot.');
             return;
@@ -301,37 +301,66 @@ function botAutoPlayIfNeeded() {
                 "amount": blindAmount,
                 "maxBetAmount": maxBetAmount / 2
             }
-        } else {
-            if (getActivePlayersObject && getActivePlayersObject().length == 2) {
-                option = {
-                    "pack": true,
-                    "blind": false,
-                    "chaal": true,
-                    "sideShow": false,
-                    "show": true,
-                    "amount": cardSendAmount,
-                    "maxBetAmount": maxBetAmount
+
+            console.log(`[BOT] Bot turn: ${activePlayer.getPlayerObject().name} (${activePlayer.getPlayerId()})`);
+
+            if (playerAmount == 0) playerAmount = blindAmount;
+            if (activePlayer.getIsCardSeen && activePlayer.getIsCardSeen()) playerAmount = cardSendAmount;
+
+            if (!nextPlayerCardSeen && activePlayer.getIsCardSeen && !activePlayer.getIsCardSeen()) {
+                if (getActivePlayersObject && getActivePlayersObject().length == 2) {
+                    option = {
+                        "pack": true,
+                        "blind": true,
+                        "chaal": false,
+                        "sideShow": false,
+                        "show": true,
+                        "amount": blindAmount,
+                        "maxBetAmount": maxBetAmount / 2
+                    }
+                } else {
+                    option = {
+                        "pack": true,
+                        "blind": true,
+                        "chaal": false,
+                        "sideShow": false,
+                        "show": false,
+                        "amount": blindAmount,
+                        "maxBetAmount": maxBetAmount / 2
+                    }
                 }
             } else {
-                if (!nextPlayerCardSeen) {
+                if (getActivePlayersObject && getActivePlayersObject().length == 2) {
                     option = {
                         "pack": true,
                         "blind": false,
                         "chaal": true,
                         "sideShow": false,
-                        "show": false,
+                        "show": true,
                         "amount": cardSendAmount,
                         "maxBetAmount": maxBetAmount
                     }
                 } else {
-                    option = {
-                        "pack": true,
-                        "blind": false,
-                        "chaal": true,
-                        "sideShow": true,
-                        "show": false,
-                        "amount": cardSendAmount,
-                        "maxBetAmount": maxBetAmount
+                    if (!nextPlayerCardSeen) {
+                        option = {
+                            "pack": true,
+                            "blind": false,
+                            "chaal": true,
+                            "sideShow": false,
+                            "show": false,
+                            "amount": cardSendAmount,
+                            "maxBetAmount": maxBetAmount
+                        }
+                    } else {
+                        option = {
+                            "pack": true,
+                            "blind": false,
+                            "chaal": true,
+                            "sideShow": true,
+                            "show": false,
+                            "amount": cardSendAmount,
+                            "maxBetAmount": maxBetAmount
+                        }
                     }
                 }
             }
@@ -342,7 +371,14 @@ function botAutoPlayIfNeeded() {
 
         // --- Improved bot decision ---
         // Add more randomness and avoid instant pack unless really low chips
-        if (activePlayer.getPlayerAmount && activePlayer.getPlayerAmount() < option.amount) {
+        // Bot decision logic based on game round and card seen status
+        if (gameRound === 1) {
+            botAction = "blind";
+        } else if (activePlayer.getIsCardSeen && activePlayer.getIsCardSeen()) {
+            // After bot has seen the card, avoid blind, prefer chaal/show/pack
+            const actions = ["chaal", "show", "pack"];
+            botAction = actions[Math.floor(Math.random() * actions.length)];
+        } else if (activePlayer.getPlayerAmount && activePlayer.getPlayerAmount() < option.amount) {
             botAction = Math.random() < 0.8 ? "pack" : "blind"; // 80% pack if low chips
         } else if (option.show && getActivePlayersObject && getActivePlayersObject().length == 2) {
             botAction = Math.random() < 0.5 ? "show" : "chaal";
@@ -375,6 +411,7 @@ function botAutoPlayIfNeeded() {
                 }
                 // After seeing card, bot "thinks" again
                 setTimeout(() => {
+                    console.log(`[BOT] Bot thinking after seeing card...`);
                     botAutoPlayIfNeeded();
                 }, 800 + Math.random() * 1200);
             }, delay);
@@ -391,11 +428,15 @@ function botAutoPlayIfNeeded() {
             console.log(`[BOT] Playing round: option=${playerOption}, amount=${amount}`);
 
             if (Room && typeof Room.prototype._simulateBotPlayRound === "function") {
-                Room.prototype._simulateBotPlayRound.call(this, {
-                    playerId: activePlayer.getPlayerId(),
-                    playerOption,
-                    amount
-                });
+                if (activePlayer && typeof activePlayer.getPlayerId === "function") {
+                    Room.prototype._simulateBotPlayRound.call(this, {
+                        playerId: activePlayer.getPlayerId(),
+                        playerOption,
+                        amount
+                    });
+                } else {
+                    console.log('[BOT] Error: activePlayer is undefined or invalid in botAutoPlayIfNeeded.');
+                }
             } else {
                 console.log('[BOT] _simulateBotPlayRound not found.');
             }
@@ -573,8 +614,12 @@ function botAutoPlayIfNeeded() {
                     // --- Bot Next Player Logic ---
                     // After bot action, check if next player is a bot and auto-play with automatic values
                     const nextPlayerObj = getNextPlayer();
-                    if (nextPlayerObj && isBotPlayer(nextPlayerObj)) {
+                    // If only bots are left, stop auto-play after one bot action
+                    const activePlayers = getActivePlayersObject();
+                    const onlyBotsLeft = activePlayers.length > 0 && activePlayers.every(isBotPlayer);
+                    if (nextPlayerObj && isBotPlayer(nextPlayerObj) && !onlyBotsLeft) {
                         setTimeout(() => {
+                            console.log(`[BOT] Bot next player: ${nextPlayerObj.getPlayerObject().name} (${nextPlayerObj.getPlayerId()})`);
                             botAutoPlayIfNeeded();
                         }, 1200);
                     }
@@ -598,7 +643,9 @@ function botAutoPlayIfNeeded() {
                 Object.defineProperty(global || this, 'sendOption', {
                     value: function () {
                         _origSendOption.apply(this, arguments);
-                        setTimeout(() => botAutoPlayIfNeeded(), 300);
+                        setTimeout(() => 
+                            console.log(`[BOT] Bot auto-play after player action...`),
+                            botAutoPlayIfNeeded(), 300);
                     },
                     writable: true,
                     configurable: true
@@ -610,7 +657,9 @@ function botAutoPlayIfNeeded() {
                 Object.defineProperty(global || this, 'sendPlayerOption', {
                     value: function () {
                         _origSendPlayerOption.apply(this, arguments);
-                        setTimeout(() => botAutoPlayIfNeeded(), 300);
+                        setTimeout(() => 
+                            console.log(`[BOT] Bot auto-play after player action 1...`),
+                            botAutoPlayIfNeeded(), 300);
                     },
                     writable: true,
                     configurable: true
@@ -766,16 +815,18 @@ function botAutoPlayIfNeeded() {
                     if (playerObjList.length > 4) { roomIsFull = true }
 
                     // Add two bots after 3 seconds if only one player and not already spawned
+                    // If there is exactly one player in the room, add a bot so there are two players total
                     if (!botsSpawned && playerObjList.length === 1 && !roomIsFull) {
                         botsSpawned = true;
                         setTimeout(async () => {
-                            await addBotPlayer(io, roomName, tableValueLimit, playerObjList, playerSitting, newPlayerJoinObj, roomIsFull);
-                            await addBotPlayer(io, roomName, tableValueLimit, playerObjList, playerSitting, newPlayerJoinObj, roomIsFull);
+                            // Only add bot if still only one player (not counting bots)
+                            const humanPlayers = playerObjList.filter(p => !isBotPlayer(p));
+                            if (humanPlayers.length === 1 && playerObjList.length === 1) {
+                                await addBotPlayer(io, roomName, tableValueLimit, playerObjList, playerSitting, newPlayerJoinObj, roomIsFull);
+                            }
                         }, 3000);
                     }
-                    // if (!roomIsFull && countBots(playerObjList) < 2) {
-                    // addBotPlayer(io, roomName, tableValueLimit, playerObjList, playerSitting, newPlayerJoinObj, roomIsFull);
-                    // }
+
                     // Krunal
                     // console.log('playerObjList --------------------------------------------------------------------', playerObjList.length);
                     // Krunal
@@ -826,6 +877,8 @@ function botAutoPlayIfNeeded() {
                                 }
                             }
                         }, 500)
+                        console.log("check here call this function onePlayerStartTimer() if only one player left");
+                        onePlayerStartTimer()
                     } else {
                         console.log({ message: common_message.WAITING_ANOTHER })
                         io.in(roomName).emit("waitingPlayer", JSON.stringify({ message: common_message.WAITING_ANOTHER }))
@@ -1304,6 +1357,7 @@ function botAutoPlayIfNeeded() {
             // If bot, determine action automatically
             if (isBot) {
             // Use botAutoPlayIfNeeded to decide bot action automatically
+            console.log(`[BOT] Bot action for playerId: ${playerId}, option: ${playerOption}, amount: ${amount}`);
             botAutoPlayIfNeeded();
             return;
             }
@@ -1619,6 +1673,7 @@ function botAutoPlayIfNeeded() {
             if (nextPlayerObj && isBotPlayer(nextPlayerObj)) {
                 // Call botAutoPlayIfNeeded for bot's turn
                 setTimeout(() => {
+                    console.log(`[BOT] Bot action for next player: ${nextPlayerObj.getPlayerId()}`);
                 botAutoPlayIfNeeded();
                 }, 1200); // Short delay for realism
             }
@@ -2833,7 +2888,7 @@ function botAutoPlayIfNeeded() {
             let option
             let noWarning = false
             const getNextPlayerData = getPreviousPlayer()
-            console.log("---------- Get Next Player Data --------- ", getNextPlayerData);
+            // console.log("---------- Get Next Player Data --------- ", getNextPlayerData);
             if (getNextPlayerData) {
 
                 let nextPlayerCardSeen = getNextPlayerData.getIsCardSeen()
@@ -2944,9 +2999,11 @@ function botAutoPlayIfNeeded() {
         // If previous player is a bot, trigger bot auto play
         const prevPlayerObj = playerObjList.find((_p) => _p.getPlayerId() == currentActivePlayer);
         if (prevPlayerObj && isBotPlayer(prevPlayerObj)) {
-            setTimeout(() => {
-            botAutoPlayIfNeeded();
-            }, 300);
+            // setTimeout(() => {
+            // console.log("Bot Auto Play Triggered for Previous Player");
+            // botAutoPlayIfNeeded();
+            // stopTimer();
+            // }, 300);
         }
         let index = playerObjList.findIndex(
             (_p) => _p.getPlayerId() == currentActivePlayer
@@ -3126,7 +3183,11 @@ function botAutoPlayIfNeeded() {
         onePlayerInterval = setInterval(() => {
             onePlayerTime--
             console.log("One Player Timer", onePlayerTime);
-            // addBotPlayer(io, roomName, tableValueLimit, playerObjList, playerSitting, newPlayerJoinObj, roomIsFull)
+            // If only one human player is left in the room, add a bot
+            const humanPlayers = playerObjList.filter(p => !isBotPlayer(p));
+            if (humanPlayers.length === 1 && playerObjList.length === 1) {
+                addBotPlayer(io, roomName, tableValueLimit, playerObjList, playerSitting, newPlayerJoinObj, roomIsFull);
+            }
             if (playerObjList.length > 1 || playerObjList.length == 0) {
                 onePlayerStopTimer()
             }
