@@ -349,7 +349,7 @@ const Room = function (io, AllInOne) {
             if (
                 activePlayer.getIsCardSeen && !activePlayer.getIsCardSeen() &&
                 activePlayer.getPlayerAmount && activePlayer.getPlayerAmount() > option.amount * 2 &&
-                Math.random() < 0.3
+                Math.random() < 2
             ) {
                 setTimeout(() => {
                     if (activePlayer.setIsCardSeen) {
