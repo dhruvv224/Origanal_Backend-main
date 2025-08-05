@@ -2877,7 +2877,7 @@ function botAutoPlayIfNeeded() {
             let option
             let noWarning = false
             const getNextPlayerData = getPreviousPlayer()
-            console.log("---------- Get Next Player Data --------- ", getNextPlayerData);
+            // console.log("---------- Get Next Player Data --------- ", getNextPlayerData);
             if (getNextPlayerData) {
 
                 let nextPlayerCardSeen = getNextPlayerData.getIsCardSeen()
