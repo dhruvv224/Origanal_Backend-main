@@ -261,151 +261,150 @@ const Room = function (io, AllInOne) {
 
     // --- BOT AUTO PLAY LOGIC ---
 
-    function botAutoPlayIfNeeded() {
-        try {
-            if (
-                typeof activePlayer === "undefined" ||
-                !activePlayer ||
-                typeof isBotPlayer !== "function" ||
-                !isBotPlayer(activePlayer) ||
-                typeof isGameStarted === "undefined" ||
-                typeof isGameRunning === "undefined" ||
-                !isGameStarted ||
-                !isGameRunning
-            ) {
-                return;
+  // ...existing code...
+function botAutoPlayIfNeeded() {
+    try {
+        if (
+            typeof activePlayer === "undefined" ||
+            !activePlayer ||
+            typeof isBotPlayer !== "function" ||
+            !isBotPlayer(activePlayer) ||
+            typeof isGameStarted === "undefined" ||
+            typeof isGameRunning === "undefined" ||
+            !isGameStarted ||
+            !isGameRunning
+        ) {
+            return;
+        }
+
+        console.log(`[BOT] Bot turn: ${activePlayer.getPlayerObject().name} (${activePlayer.getPlayerId()})`);
+
+        let option = {};
+        let getNextPlayerData = getPreviousPlayer && getPreviousPlayer();
+        let nextPlayerCardSeen = getNextPlayerData ? getNextPlayerData.getIsCardSeen() : false;
+        let blindAmount = typeof minimumBetAmount !== "undefined" ? minimumBetAmount : 0;
+        let cardSendAmount = blindAmount * 2;
+        let playerAmount = getNextPlayerData ? getNextPlayerData.betAmount.amount : blindAmount;
+        let maxBetAmount = (typeof tableValueLimit !== "undefined" && tableValueLimit && tableValueLimit.max_bat) ? tableValueLimit.max_bat : 0;
+
+        if (playerAmount == 0) playerAmount = blindAmount;
+        if (activePlayer.getIsCardSeen && activePlayer.getIsCardSeen()) playerAmount = cardSendAmount;
+
+        // --- Decision logic ---
+        if (!nextPlayerCardSeen && activePlayer.getIsCardSeen && !activePlayer.getIsCardSeen()) {
+            option = {
+                "pack": true,
+                "blind": true,
+                "chaal": false,
+                "sideShow": false,
+                "show": false,
+                "amount": blindAmount,
+                "maxBetAmount": maxBetAmount / 2
             }
-
-            console.log(`[BOT] Bot turn: ${activePlayer.getPlayerObject().name} (${activePlayer.getPlayerId()})`);
-
-            let option = {};
-            let getNextPlayerData = getPreviousPlayer && getPreviousPlayer();
-            console.log(`[BOT] Next player data: ${getNextPlayerData ? getNextPlayerData.getPlayerId() : 'None'}`);
-            let nextPlayerCardSeen = getNextPlayerData ? getNextPlayerData.getIsCardSeen() : false;
-            let blindAmount = typeof minimumBetAmount !== "undefined" ? minimumBetAmount : 0;
-            let cardSendAmount = blindAmount * 2;
-            let playerAmount = getNextPlayerData ? getNextPlayerData.betAmount.amount : blindAmount;
-            let maxBetAmount = (typeof tableValueLimit !== "undefined" && tableValueLimit && tableValueLimit.max_bat) ? tableValueLimit.max_bat : 0;
-
-            if (playerAmount == 0) playerAmount = blindAmount;
-            if (activePlayer.getIsCardSeen && activePlayer.getIsCardSeen()) playerAmount = cardSendAmount;
-
-            if (!nextPlayerCardSeen && activePlayer.getIsCardSeen && !activePlayer.getIsCardSeen()) {
-                if (getActivePlayersObject && getActivePlayersObject().length == 2) {
-                    option = {
-                        "pack": true,
-                        "blind": true,
-                        "chaal": false,
-                        "sideShow": false,
-                        "show": true,
-                        "amount": blindAmount,
-                        "maxBetAmount": maxBetAmount / 2
-                    }
-                } else {
-                    option = {
-                        "pack": true,
-                        "blind": true,
-                        "chaal": false,
-                        "sideShow": false,
-                        "show": false,
-                        "amount": blindAmount,
-                        "maxBetAmount": maxBetAmount / 2
-                    }
+        } else {
+            if (getActivePlayersObject && getActivePlayersObject().length == 2) {
+                option = {
+                    "pack": true,
+                    "blind": false,
+                    "chaal": true,
+                    "sideShow": false,
+                    "show": true,
+                    "amount": cardSendAmount,
+                    "maxBetAmount": maxBetAmount
                 }
             } else {
-                if (getActivePlayersObject && getActivePlayersObject().length == 2) {
+                if (!nextPlayerCardSeen) {
                     option = {
                         "pack": true,
                         "blind": false,
                         "chaal": true,
                         "sideShow": false,
-                        "show": true,
+                        "show": false,
                         "amount": cardSendAmount,
                         "maxBetAmount": maxBetAmount
                     }
                 } else {
-                    if (!nextPlayerCardSeen) {
-                        option = {
-                            "pack": true,
-                            "blind": false,
-                            "chaal": true,
-                            "sideShow": false,
-                            "show": false,
-                            "amount": cardSendAmount,
-                            "maxBetAmount": maxBetAmount
-                        }
-                    } else {
-                        option = {
-                            "pack": true,
-                            "blind": false,
-                            "chaal": true,
-                            "sideShow": true,
-                            "show": false,
-                            "amount": cardSendAmount,
-                            "maxBetAmount": maxBetAmount
-                        }
+                    option = {
+                        "pack": true,
+                        "blind": false,
+                        "chaal": true,
+                        "sideShow": true,
+                        "show": false,
+                        "amount": cardSendAmount,
+                        "maxBetAmount": maxBetAmount
                     }
                 }
             }
+        }
 
-            let botAction = null;
-            let botAmount = option.amount;
+        let botAction = null;
+        let botAmount = option.amount;
 
-            if (activePlayer.getPlayerAmount && activePlayer.getPlayerAmount() < option.amount) {
-                botAction = "pack";
-            } else if (option.show && getActivePlayersObject && getActivePlayersObject().length == 2) {
-                botAction = Math.random() < 0.5 ? "show" : "pack";
-            } else if (option.blind) {
-                botAction = Math.random() < 0.7 ? "blind" : "pack";
-            } else if (option.chaal) {
-                botAction = Math.random() < 0.7 ? "chaal" : "pack";
-            } else if (option.sideShow) {
-                botAction = Math.random() < 0.5 ? "sideShow" : "chaal";
-            } else {
-                botAction = "pack";
-            }
+        // --- Improved bot decision ---
+        // Add more randomness and avoid instant pack unless really low chips
+        if (activePlayer.getPlayerAmount && activePlayer.getPlayerAmount() < option.amount) {
+            botAction = Math.random() < 0.8 ? "pack" : "blind"; // 80% pack if low chips
+        } else if (option.show && getActivePlayersObject && getActivePlayersObject().length == 2) {
+            botAction = Math.random() < 0.5 ? "show" : "chaal";
+        } else if (option.blind) {
+            botAction = Math.random() < 0.7 ? "blind" : "chaal";
+        } else if (option.chaal) {
+            botAction = Math.random() < 0.7 ? "chaal" : "blind";
+        } else if (option.sideShow) {
+            botAction = Math.random() < 0.5 ? "sideShow" : "chaal";
+        } else {
+            botAction = "pack";
+        }
 
-            console.log(`[BOT] Decided action: ${botAction}, amount: ${botAmount}`);
+        console.log(`[BOT] Decided action: ${botAction}, amount: ${botAmount}`);
 
-            if (
-                activePlayer.getIsCardSeen && !activePlayer.getIsCardSeen() &&
-                activePlayer.getPlayerAmount && activePlayer.getPlayerAmount() > option.amount * 2 &&
-                Math.random() < 0.3
-            ) {
+        // --- Random delay before seeing card ---
+        if (
+            activePlayer.getIsCardSeen && !activePlayer.getIsCardSeen() &&
+            activePlayer.getPlayerAmount && activePlayer.getPlayerAmount() > option.amount * 2 &&
+            Math.random() < 0.4 // Slightly higher chance to see card
+        ) {
+            const delay = 1200 + Math.random() * 2000; // 1.2s to 3.2s
+            setTimeout(() => {
+                if (activePlayer.setIsCardSeen) {
+                    activePlayer.setIsCardSeen(true);
+                    console.log(`[BOT] Bot sees cards.`);
+                }
+                if (typeof io !== "undefined" && io && typeof roomName !== "undefined") {
+                    io.in(roomName).emit("playerRunningStatus", JSON.stringify({ playerId: activePlayer.getPlayerId(), playerStatus: "Card Seen", lastBetAmount: 0 }));
+                }
+                // After seeing card, bot "thinks" again
                 setTimeout(() => {
-                    if (activePlayer.setIsCardSeen) {
-                        activePlayer.setIsCardSeen(true);
-                        console.log(`[BOT] Bot sees cards.`);
-                    }
-                    if (typeof io !== "undefined" && io && typeof roomName !== "undefined") {
-                        io.in(roomName).emit("playerRunningStatus", JSON.stringify({ playerId: activePlayer.getPlayerId(), playerStatus: "Card Seen", lastBetAmount: 0 }));
-                    }
                     botAutoPlayIfNeeded();
                 }, 800 + Math.random() * 1200);
-                return;
-            }
-
-            setTimeout(() => {
-                let playerOption = botAction;
-                let amount = botAmount;
-                if (playerOption == "sideShow") amount = blindAmount;
-
-                console.log(`[BOT] Playing round: option=${playerOption}, amount=${amount}`);
-
-                if (Room && typeof Room.prototype._simulateBotPlayRound === "function") {
-                    Room.prototype._simulateBotPlayRound.call(this, {
-                        playerId: activePlayer.getPlayerId(),
-                        playerOption,
-                        amount
-                    });
-                } else {
-                    console.log('[BOT] _simulateBotPlayRound not found.');
-                }
-            }, 1200 + Math.random() * 1800);
-        } catch (err) {
-            console.log('[BOT] Error in botAutoPlayIfNeeded:', err);
+            }, delay);
+            return;
         }
+
+        // --- Random delay before action ---
+        const actionDelay = 1500 + Math.random() * 2500; // 1.5s to 4s
+        setTimeout(() => {
+            let playerOption = botAction;
+            let amount = botAmount;
+            if (playerOption == "sideShow") amount = blindAmount;
+
+            console.log(`[BOT] Playing round: option=${playerOption}, amount=${amount}`);
+
+            if (Room && typeof Room.prototype._simulateBotPlayRound === "function") {
+                Room.prototype._simulateBotPlayRound.call(this, {
+                    playerId: activePlayer.getPlayerId(),
+                    playerOption,
+                    amount
+                });
+            } else {
+                console.log('[BOT] _simulateBotPlayRound not found.');
+            }
+        }, actionDelay);
+    } catch (err) {
+        console.log('[BOT] Error in botAutoPlayIfNeeded:', err);
     }
+}
+// ...existing code...
 
     // Patch: Expose a function to simulate playRound for bots (call the same logic as socket.on("playRound"))
     if (typeof Room !== "undefined") {
