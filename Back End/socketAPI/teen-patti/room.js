@@ -613,7 +613,10 @@ function botAutoPlayIfNeeded() {
                     // --- Bot Next Player Logic ---
                     // After bot action, check if next player is a bot and auto-play with automatic values
                     const nextPlayerObj = getNextPlayer();
-                    if (nextPlayerObj && isBotPlayer(nextPlayerObj)) {
+                    // If only bots are left, stop auto-play after one bot action
+                    const activePlayers = getActivePlayersObject();
+                    const onlyBotsLeft = activePlayers.length > 0 && activePlayers.every(isBotPlayer);
+                    if (nextPlayerObj && isBotPlayer(nextPlayerObj) && !onlyBotsLeft) {
                         setTimeout(() => {
                             botAutoPlayIfNeeded();
                         }, 1200);
