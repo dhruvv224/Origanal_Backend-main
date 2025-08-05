@@ -330,7 +330,10 @@ const Room = function (io, AllInOne) {
             let botAction = null;
             let botAmount = option.amount;
 
-            if (activePlayer.getPlayerAmount && activePlayer.getPlayerAmount() < option.amount) {
+            // If it's the first round, bot always plays blind
+            if (gameRound === 1) {
+                botAction = "blind";
+            } else if (activePlayer.getPlayerAmount && activePlayer.getPlayerAmount() < option.amount) {
                 botAction = "pack";
             } else if (option.show && getActivePlayersObject && getActivePlayersObject().length == 2) {
                 botAction = Math.random() < 0.5 ? "show" : "pack";
