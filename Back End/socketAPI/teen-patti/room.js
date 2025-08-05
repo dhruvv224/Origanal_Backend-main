@@ -477,7 +477,7 @@ function botAutoPlayIfNeeded() {
                     }
 
                     let liveStatus = playerOption === "pack" ? "Packed" : capitalizeFirstLetter(playerOption);
-                    let sendAmount = playerOption === "sideShow" ? amountToPlay * 2 : amountToPlay;
+                    let sendAmount = playerOption === "sideShow" ? amountToPlay * 2 : amount;
 
                     io.in(roomName).emit("playerBetAmount", JSON.stringify({ playerId: playerId, betAmount: sendAmount }));
                     io.in(roomName).emit("playerRunningStatus", JSON.stringify({ playerId: playerId, playerStatus: liveStatus, lastBetAmount: sendAmount }));
@@ -1568,26 +1568,26 @@ function botAutoPlayIfNeeded() {
                         winTeenPatti.push({ playerId: _playerData.playerId, name: getWhoIsWin.name, score: getWhoIsWin.score });
                         });
                         break;
-                    }
+                }
 
-                    if (winTeenPatti.length > 1) {
+                if (winTeenPatti.length > 1) {
                     if (winTeenPatti[0].score == winTeenPatti[1].score) {
                         const getWinPlayer = _.find(winTeenPatti, (_player) => {
-                        return _player.playerId != playerObject.getPlayerId();
+                            return _player.playerId != playerObject.getPlayerId();
                         });
                         const getLosePlayer = _.find(winTeenPatti, (_player) => {
-                        return _player.playerId == playerObject.getPlayerId();
+                            return _player.playerId == playerObject.getPlayerId();
                         });
                         winPlayerCalculation(getWinPlayer, getLosePlayer, true);
                     } else {
                         storePlayerVariationCard = [];
                         const getWinPlayer = getWhoIsWin(getPlayerCardArray);
                         const getLosePlayer = _.find(getPlayerCardArray, (_player) => {
-                        return _player.playerId != getWinPlayer.playerId;
+                            return _player.playerId != getWinPlayer.playerId;
                         });
                         winPlayerCalculation(getWinPlayer, getLosePlayer, true);
                     }
-                    }
+                }
                 } else {
                     const getPlayerCardArray = getAllActivePlayerCard();
                     const getWinPlayer = getWhoIsWin(getPlayerCardArray);
@@ -3208,7 +3208,7 @@ function botAutoPlayIfNeeded() {
                                 }
                                 if (getActivePlayersObject().length == 1) {
                                     const getLastActivePlayer = _.find(getActivePlayersObject(), (_player) => {
-                                        return _player.getIsActive() == true
+                                        return _player.getIsActive() == true;
                                     })
                                     if (getLastActivePlayer) {
                                         isGameEnd = true
@@ -3220,7 +3220,8 @@ function botAutoPlayIfNeeded() {
                                         getLastActivePlayer.setWinPlayHand(getLastActivePlayer.getWinPlayHand() + 1)
                                         setWinnerWinAmount(winPlayerId, roomName, gameRound, getTotalWinAmount, getLastActivePlayer.getPlayerAmount())
                                         setAllPlayerLoseAmount(winPlayerId)
-                                        io.in(roomName).emit("packWinner", JSON.stringify({ playerId: getLastActivePlayer.getPlayerId(), status: true, message: common_message.ALL_PACK_WIN }))
+                                        io.in(roomName).emit("playerRunningStatus", JSON.stringify({ playerId: playerObject.getPlayerId(), playerStatus: "Packed", lastBetAmount: 0 }));
+                                        io.in(roomName).emit("packWinner", JSON.stringify({ playerId: getLastActivePlayer.getPlayerId(), status: true, message: common_message.ALL_PACK_WIN }));
                                         gameRestart()
                                     }
                                 }
