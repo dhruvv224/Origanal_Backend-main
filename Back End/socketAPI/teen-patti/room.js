@@ -76,40 +76,40 @@ const Room = function (io, AllInOne) {
         }, 3000) // 3 seconds delay
     }
 
-    const addBotPlayer = () => {
-        if (isBotActive || playerObjList.length > 0) return
+    // const addBotPlayer = () => {
+    //     if (isBotActive || playerObjList.length > 0) return
 
-        const bot = createBotPlayer()
-        const emptyPosition = _.find(playerSitting, (_position) => { 
-            return _position.isPlayerSitting == false 
-        })
+    //     const bot = createBotPlayer()
+    //     const emptyPosition = _.find(playerSitting, (_position) => { 
+    //         return _position.isPlayerSitting == false 
+    //     })
 
-        if (emptyPosition) {
-            emptyPosition.isPlayerSitting = true
-            bot.setPlayerPosition(emptyPosition.position)
-            playerObjList.push(bot)
-            isBotActive = true
+    //     if (emptyPosition) {
+    //         emptyPosition.isPlayerSitting = true
+    //         bot.setPlayerPosition(emptyPosition.position)
+    //         playerObjList.push(bot)
+    //         isBotActive = true
 
-            console.log("Bot player added:", bot.getPlayerObject().name)
+    //         console.log("Bot player added:", bot.getPlayerObject().name)
 
-            // Emit bot join event
-            io.in(roomName).emit("newPlayerJoin", JSON.stringify({ 
-                playerId: bot.getPlayerId(), 
-                dealerId: 0, 
-                status: true, 
-                tableAmount: tableAmount 
-            }))
+    //         // Emit bot join event
+    //         io.in(roomName).emit("newPlayerJoin", JSON.stringify({ 
+    //             playerId: bot.getPlayerId(), 
+    //             dealerId: 0, 
+    //             status: true, 
+    //             tableAmount: tableAmount 
+    //         }))
 
-            // Start game if bot is the only player
-            if (playerObjList.length === 1) {
-                setTimeout(() => {
-                    if (!isGameStarted) {
-                        gameStart()
-                    }
-                }, 1000)
-            }
-        }
-    }
+    //         // Start game if bot is the only player
+    //         if (playerObjList.length === 1) {
+    //             setTimeout(() => {
+    //                 if (!isGameStarted) {
+    //                     gameStart()
+    //                 }
+    //             }, 1000)
+    //         }
+    //     }
+    // }
 
     const removeBotPlayer = () => {
         if (botPlayer && isBotActive) {
