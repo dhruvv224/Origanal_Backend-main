@@ -542,6 +542,12 @@ function botAutoPlayIfNeeded() {
             !isGameStarted ||
             !isGameRunning
         ) {
+            console.log('[BOT] Bot cannot play: Conditions not met.', {
+                activePlayerExists: !!activePlayer,
+                isBot: typeof isBotPlayer === "function" && activePlayer ? isBotPlayer(activePlayer) : false,
+                gameStarted: typeof isGameStarted !== "undefined" ? isGameStarted : false,
+                gameRunning: typeof isGameRunning !== "undefined" ? isGameRunning : false
+            });
             return;
         }
 
@@ -561,45 +567,45 @@ function botAutoPlayIfNeeded() {
         // Decision logic
         if (!nextPlayerCardSeen && activePlayer.getIsCardSeen && !activePlayer.getIsCardSeen()) {
             option = {
-                "pack": true,
-                "blind": true,
-                "chaal": false,
-                "sideShow": false,
-                "show": false,
-                "amount": blindAmount,
-                "maxBetAmount": maxBetAmount / 2
+                pack: true,
+                blind: true,
+                chaal: false,
+                sideShow: false,
+                show: false,
+                amount: blindAmount,
+                maxBetAmount: maxBetAmount / 2
             };
         } else {
             if (getActivePlayersObject && getActivePlayersObject().length == 2) {
                 option = {
-                    "pack": true,
-                    "blind": false,
-                    "chaal": true,
-                    "sideShow": false,
-                    "show": true,
-                    "amount": cardSendAmount,
-                    "maxBetAmount": maxBetAmount
+                    pack: true,
+                    blind: false,
+                    chaal: true,
+                    sideShow: false,
+                    show: true,
+                    amount: cardSendAmount,
+                    maxBetAmount: maxBetAmount
                 };
             } else {
                 if (!nextPlayerCardSeen) {
                     option = {
-                        "pack": true,
-                        "blind": false,
-                        "chaal": true,
-                        "sideShow": false,
-                        "show": false,
-                        "amount": cardSendAmount,
-                        "maxBetAmount": maxBetAmount
+                        pack: true,
+                        blind: false,
+                        chaal: true,
+                        sideShow: false,
+                        show: false,
+                        amount: cardSendAmount,
+                        maxBetAmount: maxBetAmount
                     };
                 } else {
                     option = {
-                        "pack": true,
-                        "blind": false,
-                        "chaal": true,
-                        "sideShow": true,
-                        "show": false,
-                        "amount": cardSendAmount,
-                        "maxBetAmount": maxBetAmount
+                        pack: true,
+                        blind: false,
+                        chaal: true,
+                        sideShow: true,
+                        show: false,
+                        amount: cardSendAmount,
+                        maxBetAmount: maxBetAmount
                     };
                 }
             }
@@ -649,15 +655,10 @@ function botAutoPlayIfNeeded() {
                         lastBetAmount: 0 
                     }));
                 }
-                // After seeing card, bot "thinks" again, but we avoid recursive call to prevent bot-only loop
+                // After seeing card, advance to bot's next action
                 setTimeout(() => {
                     console.log(`[BOT] Bot thinking after seeing card...`);
-                    // Instead of calling botAutoPlayIfNeeded, emit an event to advance to next player
-                    if (typeof io !== "undefined" && io && typeof roomName !== "undefined") {
-                        io.in(roomName).emit("advanceToNextPlayer", { 
-                            currentPlayerId: activePlayer.getPlayerId() 
-                        });
-                    }
+                    botAutoPlayIfNeeded(); // Re-run to decide action after seeing cards
                 }, 800 + Math.random() * 1200);
             }, delay);
             return;
@@ -679,12 +680,8 @@ function botAutoPlayIfNeeded() {
                         playerOption,
                         amount
                     });
-                    // After bot plays, emit event to advance to next player
-                    if (typeof io !== "undefined" && io && typeof roomName !== "undefined") {
-                        io.in(roomName).emit("advanceToNextPlayer", { 
-                            currentPlayerId: activePlayer.getPlayerId() 
-                        });
-                    }
+                    // Advance to next player after bot plays
+                    advanceToNextPlayer();
                 } else {
                     console.log('[BOT] Error: activePlayer is undefined or invalid in botAutoPlayIfNeeded.');
                 }
@@ -3171,7 +3168,7 @@ function botAutoPlayIfNeeded() {
         sendPlayerOption(activePlayer.getSocketId(), activePlayer.getIsCardSeen())
         startTimer()
     }
-    const getPreviousPlayer = () => {
+  function getPreviousPlayer() {
     console.log("---------- Find Get Previous Player --------- ");
     const currentActivePlayer = activePlayer.getPlayerId();
     console.log("-----------------------Active players-------------------------", currentActivePlayer);
@@ -3180,8 +3177,8 @@ function botAutoPlayIfNeeded() {
         (_p) => _p.getPlayerId() == currentActivePlayer
     );
 
-    isSearchingForNextPlayer = true;
-    start: while (isSearchingForNextPlayer) {
+    let isSearchingForPreviousPlayer = true;
+    start: while (isSearchingForPreviousPlayer) {
         index = index - 1;
         if (index == -1) {
             index = playerObjList.length - 1;
@@ -3189,7 +3186,7 @@ function botAutoPlayIfNeeded() {
 
         if (playerObjList.length > 1 && playerObjList[index]) {
             if (playerObjList[index].getIsActive()) {
-                isSearchingForNextPlayer = false;
+                isSearchingForPreviousPlayer = false;
                 break;
             } else {
                 if (getActivePlayersObject().length > 1) {
@@ -3204,7 +3201,59 @@ function botAutoPlayIfNeeded() {
         }
     }
     return playerObjList[index];
-};
+}
+
+
+function advanceToNextPlayer() {
+    console.log("---------- Advancing to Next Player --------- ");
+    const currentActivePlayer = activePlayer.getPlayerId();
+    let index = playerObjList.findIndex(
+        (_p) => _p.getPlayerId() == currentActivePlayer
+    );
+
+    let isSearchingForNextPlayer = true;
+    start: while (isSearchingForNextPlayer) {
+        index = (index + 1) % playerObjList.length;
+
+        if (playerObjList.length > 1 && playerObjList[index]) {
+            if (playerObjList[index].getIsActive()) {
+                isSearchingForNextPlayer = false;
+                break;
+            } else {
+                if (getActivePlayersObject().length > 1) {
+                    continue start;
+                } else {
+                    console.log("No Stuck Break While Loop Next Player");
+                    break start;
+                }
+            }
+        } else {
+            break start;
+        }
+    }
+
+    const nextPlayer = playerObjList[index];
+    if (nextPlayer) {
+        console.log(`[GAME] Advancing to player: ${nextPlayer.getPlayerObject().name} (${nextPlayer.getPlayerId()})`);
+        activePlayer = nextPlayer;
+        if (typeof io !== "undefined" && io && typeof roomName !== "undefined") {
+            io.in(roomName).emit("playerTurn", {
+                playerId: nextPlayer.getPlayerId(),
+                playerName: nextPlayer.getPlayerObject().name
+            });
+        }
+        // If the next player is a bot, trigger bot play
+        if (isBotPlayer(nextPlayer)) {
+            console.log(`[GAME] Next player is a bot, triggering botAutoPlayIfNeeded`);
+            setTimeout(() => {
+                botAutoPlayIfNeeded();
+            }, 500); // Small delay to ensure turn is set
+        }
+    } else {
+        console.log('[GAME] Error: No valid next player found.');
+    }
+}
+
     const roomWinLoseChips = () => {
         _.map(playerObjList, (_player) => {
             _player.setRoomWinLoseChips(_player.getPlayerAmount() - _player.getEnterAmount())
