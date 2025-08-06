@@ -265,6 +265,7 @@ const Room = function (io, AllInOne) {
   // ...existing code...
 function botAutoPlayIfNeeded() {
     try {
+        // Check if conditions for bot to play are met
         if (
             typeof activePlayer === "undefined" ||
             !activePlayer ||
@@ -291,7 +292,7 @@ function botAutoPlayIfNeeded() {
         if (playerAmount == 0) playerAmount = blindAmount;
         if (activePlayer.getIsCardSeen && activePlayer.getIsCardSeen()) playerAmount = cardSendAmount;
 
-        // --- Decision logic ---
+        // Decision logic
         if (!nextPlayerCardSeen && activePlayer.getIsCardSeen && !activePlayer.getIsCardSeen()) {
             option = {
                 "pack": true,
@@ -301,68 +302,39 @@ function botAutoPlayIfNeeded() {
                 "show": false,
                 "amount": blindAmount,
                 "maxBetAmount": maxBetAmount / 2
-            }
-
-            console.log(`[BOT] Bot turn: ${activePlayer.getPlayerObject().name} (${activePlayer.getPlayerId()})`);
-
-            if (playerAmount == 0) playerAmount = blindAmount;
-            if (activePlayer.getIsCardSeen && activePlayer.getIsCardSeen()) playerAmount = cardSendAmount;
-
-            if (!nextPlayerCardSeen && activePlayer.getIsCardSeen && !activePlayer.getIsCardSeen()) {
-                if (getActivePlayersObject && getActivePlayersObject().length == 2) {
-                    option = {
-                        "pack": true,
-                        "blind": true,
-                        "chaal": false,
-                        "sideShow": false,
-                        "show": true,
-                        "amount": blindAmount,
-                        "maxBetAmount": maxBetAmount / 2
-                    }
-                } else {
-                    option = {
-                        "pack": true,
-                        "blind": true,
-                        "chaal": false,
-                        "sideShow": false,
-                        "show": false,
-                        "amount": blindAmount,
-                        "maxBetAmount": maxBetAmount / 2
-                    }
-                }
+            };
+        } else {
+            if (getActivePlayersObject && getActivePlayersObject().length == 2) {
+                option = {
+                    "pack": true,
+                    "blind": false,
+                    "chaal": true,
+                    "sideShow": false,
+                    "show": true,
+                    "amount": cardSendAmount,
+                    "maxBetAmount": maxBetAmount
+                };
             } else {
-                if (getActivePlayersObject && getActivePlayersObject().length == 2) {
+                if (!nextPlayerCardSeen) {
                     option = {
                         "pack": true,
                         "blind": false,
                         "chaal": true,
                         "sideShow": false,
-                        "show": true,
+                        "show": false,
                         "amount": cardSendAmount,
                         "maxBetAmount": maxBetAmount
-                    }
+                    };
                 } else {
-                    if (!nextPlayerCardSeen) {
-                        option = {
-                            "pack": true,
-                            "blind": false,
-                            "chaal": true,
-                            "sideShow": false,
-                            "show": false,
-                            "amount": cardSendAmount,
-                            "maxBetAmount": maxBetAmount
-                        }
-                    } else {
-                        option = {
-                            "pack": true,
-                            "blind": false,
-                            "chaal": true,
-                            "sideShow": true,
-                            "show": false,
-                            "amount": cardSendAmount,
-                            "maxBetAmount": maxBetAmount
-                        }
-                    }
+                    option = {
+                        "pack": true,
+                        "blind": false,
+                        "chaal": true,
+                        "sideShow": true,
+                        "show": false,
+                        "amount": cardSendAmount,
+                        "maxBetAmount": maxBetAmount
+                    };
                 }
             }
         }
@@ -370,17 +342,14 @@ function botAutoPlayIfNeeded() {
         let botAction = null;
         let botAmount = option.amount;
 
-        // --- Improved bot decision ---
-        // Add more randomness and avoid instant pack unless really low chips
-        // Bot decision logic based on game round and card seen status
+        // Improved bot decision with randomness
         if (gameRound === 1) {
             botAction = "blind";
         } else if (activePlayer.getIsCardSeen && activePlayer.getIsCardSeen()) {
-            // After bot has seen the card, avoid blind, prefer chaal/show/pack
             const actions = ["chaal", "show", "pack"];
             botAction = actions[Math.floor(Math.random() * actions.length)];
         } else if (activePlayer.getPlayerAmount && activePlayer.getPlayerAmount() < option.amount) {
-            botAction = Math.random() < 0.8 ? "pack" : "blind"; // 80% pack if low chips
+            botAction = Math.random() < 0.8 ? "pack" : "blind";
         } else if (option.show && getActivePlayersObject && getActivePlayersObject().length == 2) {
             botAction = Math.random() < 0.5 ? "show" : "chaal";
         } else if (option.blind) {
@@ -395,32 +364,41 @@ function botAutoPlayIfNeeded() {
 
         console.log(`[BOT] Decided action: ${botAction}, amount: ${botAmount}`);
 
-        // --- Random delay before seeing card ---
+        // Random delay before seeing card
         if (
             activePlayer.getIsCardSeen && !activePlayer.getIsCardSeen() &&
             activePlayer.getPlayerAmount && activePlayer.getPlayerAmount() > option.amount * 2 &&
-            Math.random() < 0.4 // Slightly higher chance to see card
+            Math.random() < 0.4
         ) {
-            const delay = 1200 + Math.random() * 2000; // 1.2s to 3.2s
+            const delay = 1200 + Math.random() * 2000;
             setTimeout(() => {
                 if (activePlayer.setIsCardSeen) {
                     activePlayer.setIsCardSeen(true);
                     console.log(`[BOT] Bot sees cards.`);
                 }
                 if (typeof io !== "undefined" && io && typeof roomName !== "undefined") {
-                    io.in(roomName).emit("playerRunningStatus", JSON.stringify({ playerId: activePlayer.getPlayerId(), playerStatus: "Card Seen", lastBetAmount: 0 }));
+                    io.in(roomName).emit("playerRunningStatus", JSON.stringify({ 
+                        playerId: activePlayer.getPlayerId(), 
+                        playerStatus: "Card Seen", 
+                        lastBetAmount: 0 
+                    }));
                 }
-                // After seeing card, bot "thinks" again
+                // After seeing card, bot "thinks" again, but we avoid recursive call to prevent bot-only loop
                 setTimeout(() => {
                     console.log(`[BOT] Bot thinking after seeing card...`);
-                    botAutoPlayIfNeeded();
+                    // Instead of calling botAutoPlayIfNeeded, emit an event to advance to next player
+                    if (typeof io !== "undefined" && io && typeof roomName !== "undefined") {
+                        io.in(roomName).emit("advanceToNextPlayer", { 
+                            currentPlayerId: activePlayer.getPlayerId() 
+                        });
+                    }
                 }, 800 + Math.random() * 1200);
             }, delay);
             return;
         }
 
-        // --- Random delay before action ---
-        const actionDelay = 1500 + Math.random() * 2500; // 1.5s to 4s
+        // Random delay before action
+        const actionDelay = 1500 + Math.random() * 2500;
         setTimeout(() => {
             let playerOption = botAction;
             let amount = botAmount;
@@ -435,6 +413,12 @@ function botAutoPlayIfNeeded() {
                         playerOption,
                         amount
                     });
+                    // After bot plays, emit event to advance to next player
+                    if (typeof io !== "undefined" && io && typeof roomName !== "undefined") {
+                        io.in(roomName).emit("advanceToNextPlayer", { 
+                            currentPlayerId: activePlayer.getPlayerId() 
+                        });
+                    }
                 } else {
                     console.log('[BOT] Error: activePlayer is undefined or invalid in botAutoPlayIfNeeded.');
                 }
@@ -2893,47 +2877,39 @@ function botAutoPlayIfNeeded() {
         startTimer()
     }
     const getPreviousPlayer = () => {
-        console.log("---------- FInd Get Previous Player --------- ")
-        const currentActivePlayer = activePlayer.getPlayerId()
-        console.log("-----------------------Active players-------------------------", currentActivePlayer)
-        // If previous player is a bot, trigger bot auto play
-        const prevPlayerObj = playerObjList.find((_p) => _p.getPlayerId() == currentActivePlayer);
-        if (prevPlayerObj && isBotPlayer(prevPlayerObj)) {
-            // If previous player is a bot, trigger bot auto play
-            if (isBotPlayer(prevPlayerObj)) {
-                console.log("Previous Player is a Bot, triggering auto play");
-                botAutoPlayIfNeeded();
-            }
+    console.log("---------- Find Get Previous Player --------- ");
+    const currentActivePlayer = activePlayer.getPlayerId();
+    console.log("-----------------------Active players-------------------------", currentActivePlayer);
+
+    let index = playerObjList.findIndex(
+        (_p) => _p.getPlayerId() == currentActivePlayer
+    );
+
+    isSearchingForNextPlayer = true;
+    start: while (isSearchingForNextPlayer) {
+        index = index - 1;
+        if (index == -1) {
+            index = playerObjList.length - 1;
         }
-        let index = playerObjList.findIndex(
-            (_p) => _p.getPlayerId() == currentActivePlayer
-        )
 
-        isSearchingForNextPlayer = true
-        start: while (isSearchingForNextPlayer) {
-            index = index - 1
-            if (index == -1) {
-                index = playerObjList.length - 1
-            }
-
-            if (playerObjList.length > 1 && playerObjList[index]) {
-                if (playerObjList[index].getIsActive()) {
-                    isSearchingForNextPlayer = false
-                    break
-                } else {
-                    if (getActivePlayersObject().length > 1) {
-                        continue start
-                    } else {
-                        console.log("No Stuck Break While Loop Previous Player");
-                        break start
-                    }
-                }
+        if (playerObjList.length > 1 && playerObjList[index]) {
+            if (playerObjList[index].getIsActive()) {
+                isSearchingForNextPlayer = false;
+                break;
             } else {
-                break start
+                if (getActivePlayersObject().length > 1) {
+                    continue start;
+                } else {
+                    console.log("No Stuck Break While Loop Previous Player");
+                    break start;
+                }
             }
+        } else {
+            break start;
         }
-        return playerObjList[index]
     }
+    return playerObjList[index];
+};
     const roomWinLoseChips = () => {
         _.map(playerObjList, (_player) => {
             _player.setRoomWinLoseChips(_player.getPlayerAmount() - _player.getEnterAmount())
