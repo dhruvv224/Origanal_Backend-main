@@ -11,6 +11,272 @@ const Room = function (io, AllInOne) {
     let teenPattiWinner = require("./winnerLogic/index")
     let cards = require("./winnerLogic/cards")
 
+    // Bot names enum (Hindi names)
+    // const BOT_NAMES = [
+    //     "राहुल",
+    //     "प्रिया", 
+    //     "अमित",
+    //     "सुनीता",
+    //     "राजेश",
+    //     "कविता",
+    //     "संजय",
+    //     "मीना",
+    //     "विकास",
+    //     "पूजा"
+    // ]
+
+    // Bot player variables
+    let botPlayer = null
+    let botJoinTimer = null
+    let botActionTimer = null
+    let isBotActive = false
+
+    // Bot player functions
+    const createBotPlayer = () => {
+        if (botPlayer) return botPlayer
+
+        const randomName = BOT_NAMES[Math.floor(Math.random() * BOT_NAMES.length)]
+        const botId = `bot_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+        
+        const botPlayerObject = {
+            _id: botId,
+            name: randomName,
+            avatar_id: Math.floor(Math.random() * 10) + 1,
+            profile_pic: "",
+            chips: 10000, // Default bot chips
+            isBot: true
+        }
+
+        botPlayer = new Player(io)
+        botPlayer.setRoomName(roomName)
+        botPlayer.setPlayerId(botId)
+        botPlayer.setPlayerObjectId(botId)
+        botPlayer.setSocketId(`bot_socket_${botId}`)
+        botPlayer.setPlayerObject(botPlayerObject)
+        botPlayer.setDealerPosition(0)
+        botPlayer.setEnterAmount(10000)
+        botPlayer.setPlayerAmount(10000)
+        botPlayer.setPlayerPosition(0)
+        botPlayer.setPlayerStandUp(false)
+        botPlayer.setPlayerStandUpOrNot(false)
+        botPlayer.setIsActive(true)
+
+        return botPlayer
+    }
+
+    const startBotJoinTimer = () => {
+        if (botJoinTimer) {
+            clearTimeout(botJoinTimer)
+        }
+        
+        botJoinTimer = setTimeout(() => {
+            if (playerObjList.length === 0 && !isGameStarted && !isBotActive) {
+                addBotPlayer()
+            }
+        }, 3000) // 3 seconds delay
+    }
+
+    const addBotPlayer = () => {
+        if (isBotActive || playerObjList.length > 0) return
+
+        const bot = createBotPlayer()
+        const emptyPosition = _.find(playerSitting, (_position) => { 
+            return _position.isPlayerSitting == false 
+        })
+
+        if (emptyPosition) {
+            emptyPosition.isPlayerSitting = true
+            bot.setPlayerPosition(emptyPosition.position)
+            playerObjList.push(bot)
+            isBotActive = true
+
+            console.log("Bot player added:", bot.getPlayerObject().name)
+
+            // Emit bot join event
+            io.in(roomName).emit("newPlayerJoin", JSON.stringify({ 
+                playerId: bot.getPlayerId(), 
+                dealerId: 0, 
+                status: true, 
+                tableAmount: tableAmount 
+            }))
+
+            // Start game if bot is the only player
+            if (playerObjList.length === 1) {
+                setTimeout(() => {
+                    if (!isGameStarted) {
+                        gameStart()
+                    }
+                }, 1000)
+            }
+        }
+    }
+
+    const removeBotPlayer = () => {
+        if (botPlayer && isBotActive) {
+            const botIndex = playerObjList.findIndex(player => player.getPlayerId() === botPlayer.getPlayerId())
+            if (botIndex !== -1) {
+                const botPosition = botPlayer.getPlayerPosition()
+                emptyPlayerPosition(botPosition)
+                playerObjList.splice(botIndex, 1)
+                
+                io.in(roomName).emit("playerLeft", JSON.stringify({ playerId: botPlayer.getPlayerId() }))
+                
+                botPlayer = null
+                isBotActive = false
+                console.log("Bot player removed")
+            }
+        }
+    }
+
+    const makeBotPlay = () => {
+        if (!botPlayer || !isBotActive || !activePlayer || activePlayer.getPlayerId() !== botPlayer.getPlayerId()) {
+            return
+        }
+
+        // Random delay between 3-8 seconds to simulate human thinking
+        const randomDelay = Math.floor(Math.random() * 5000) + 3000
+        
+        botActionTimer = setTimeout(() => {
+            if (!botPlayer || !isBotActive || !activePlayer || activePlayer.getPlayerId() !== botPlayer.getPlayerId()) {
+                return
+            }
+
+            const botOptions = ["pack", "chaal", "blind"]
+            const randomOption = botOptions[Math.floor(Math.random() * botOptions.length)]
+            
+            // Calculate bet amount based on current minimum bet
+            let betAmount = minimumBetAmount
+            if (randomOption === "chaal" || randomOption === "blind") {
+                betAmount = Math.min(betAmount, botPlayer.getPlayerAmount())
+            }
+
+            // Simulate bot action
+            const botActionData = {
+                playerId: botPlayer.getPlayerId(),
+                playerOption: randomOption,
+                amount: betAmount
+            }
+
+            console.log(`Bot ${botPlayer.getPlayerObject().name} playing: ${randomOption} with amount ${betAmount}`)
+            
+            // Trigger the playRound logic directly
+            handleBotPlayRound(botActionData)
+            
+        }, randomDelay)
+    }
+
+    const handleBotPlayRound = (botActionData) => {
+        let { playerId, playerOption, amount } = botActionData
+
+        if (playerOption == "sideShow") {
+            amount = minimumBetAmount
+            isSlideShowSelected = true
+        } else {
+            isSlideShowSelected = false
+        }
+
+        let playerObject = getMyPlayer(playerId)
+        let isPack = false
+        let isShow = false
+        let isSideShow = false
+
+        if (playerObject && activePlayer && !playerObject.getPlayerTimeOut() && !isGameStartOrNot) {
+
+            if (optionDisable || activePlayer.getPlayerAmount() < amount) {
+                return false
+            }
+
+            playerObject.setTimeOutCounter(0)
+            playerObject.betAmount.amount = amount
+            switch (playerOption) {
+                case "pack":
+                    playerObject.setIsActive(false)
+                    isPack = true
+                    break
+                case "chaal":
+                    console.log("chaal")
+                    playerObject.setPlayerAmount(playerObject.getPlayerAmount() - amount)
+                    playerObject.setLoseChips(playerObject.getLoseChips() + amount)
+                    break
+                case "blind":
+                    console.log("blind")
+                    playerObject.setPlayerAmount(playerObject.getPlayerAmount() - amount)
+                    playerObject.setLoseChips(playerObject.getLoseChips() + amount)
+                    playerObject.setAutoCardSeenCounter(playerObject.getAutoCardSeenCounter() + 1)
+                    break
+                case "show":
+                    console.log("show")
+                    isShow = true
+                    playerObject.setPlayerAmount(playerObject.getPlayerAmount() - amount)
+                    playerObject.setLoseChips(playerObject.getLoseChips() + amount)
+                    break
+                case "sideShow":
+                    console.log("sideShow")
+                    playerObject.setPlayerAmount(playerObject.getPlayerAmount() - amount * 2)
+                    playerObject.setLoseChips(playerObject.getLoseChips() + amount * 2)
+                    isSideShow = true
+                    break
+            }
+
+            //Set Table Amount
+            if (playerOption != "sideShow") {
+                setTableAmount(tableAmount + amount)
+            } else {
+                setTableAmount(tableAmount + amount * 2)
+            }
+
+            if (!isPack && !isSideShow) {
+                if (playerObject.getIsCardSeen()) {
+                    minimumBetAmount = amount / 2
+                } else {
+                    minimumBetAmount = amount
+                }
+            }
+
+            let liveStatus = ""
+            if (playerOption == "pack") {
+                liveStatus = "Packed"
+            } else {
+                liveStatus = capitalizeFirstLetter(playerOption)
+            }
+
+            let sendAmount = amount
+            if (playerOption == "sideShow") {
+                sendAmount = amount * 2
+            }
+
+            io.in(roomName).emit("playerBetAmount", JSON.stringify({ playerId: playerId, betAmount: sendAmount }))
+            io.in(roomName).emit("playerRunningStatus", JSON.stringify({ playerId: playerId, playerStatus: liveStatus, lastBetAmount: sendAmount }))
+
+            // Continue with the rest of the playRound logic...
+            // This is a simplified version - you may need to add more logic based on your game rules
+            if (!isPack && !isSideShow) {
+                stopTimer()
+                setActivePlayer(getNextPlayer())
+                if (activePlayer.getAutoCardSeenCounter() == 4) {
+                    activePlayer.setIsCardSeen(true)
+                    activePlayer.setCheckCardSeenCounter(true)
+                }
+
+                if (getActivePlayersObject().length != 1) {
+                    if (playerOption != "show") {
+                        sendPlayerOption(activePlayer.getSocketId(), activePlayer.getIsCardSeen())
+                        startTimer()
+                    }
+                }
+            }
+
+            io.in(roomName).emit("tableAmount", JSON.stringify({ tableAmount: tableAmount, playerData: getAllPlayerDetails() }))
+        }
+    }
+
+    const stopBotActionTimer = () => {
+        if (botActionTimer) {
+            clearTimeout(botActionTimer)
+            botActionTimer = null
+        }
+    }
+
     //Model
     const Players = require("../../models/player")
     const Room = require("../../models/room")
@@ -812,6 +1078,11 @@ function botAutoPlayIfNeeded() {
 
                     // Auto Game Start
                     if (playerObjList.length > 1 && !isGameStarted) {
+                        // Remove bot if human players join
+                        if (isBotActive && botPlayer) {
+                            removeBotPlayer()
+                        }
+                        
                         setTimeout(() => {
                             let checkVariation = true;
                             if (gameType == "Variation") {
@@ -1258,7 +1529,7 @@ function botAutoPlayIfNeeded() {
         });
 
         socket.on("playRound", (playerData) => {
-            let { playerId, playerOption, amount, isBot } = JSON.parse(playerData);
+            let { playerId, playerOption, amount } = JSON.parse(playerData)
             console.log("---------------- Play Round ---------------", JSON.parse(playerData));
 
             let playerObject = getMyPlayer(playerId);
@@ -1578,7 +1849,7 @@ function botAutoPlayIfNeeded() {
             } else {
                 socket.emit("noPlay", JSON.stringify({ status: true }));
             }
-        });
+        })
 
         socket.on("sideShowAcceptDecline", (playerData) => {
             const { playerId, status, leftSidePlayerId, leftSidePlayerSocketId } = JSON.parse(playerData);
@@ -1988,6 +2259,21 @@ function botAutoPlayIfNeeded() {
         }
     }
     const deleteRoom = async () => {
+        // Clean up bot timers
+        if (botJoinTimer) {
+            clearTimeout(botJoinTimer)
+            botJoinTimer = null
+        }
+        if (botActionTimer) {
+            clearTimeout(botActionTimer)
+            botActionTimer = null
+        }
+        
+        // Remove bot player
+        if (isBotActive && botPlayer) {
+            removeBotPlayer()
+        }
+        
         let roomObjList
         switch (gameType) {
             case "TeenPatti":
@@ -2097,25 +2383,23 @@ function botAutoPlayIfNeeded() {
 
             //isRoomDelete
             if (getActivePlayersObject().length == 1) {
-                // Treat bot as a normal player for room deletion
                 const getLastPlayerData = _.find(getActivePlayersObject(), (_player) => {
-                    return _player;
-                });
+                    return _player
+                })
                 if (getLastPlayerData) {
                     console.log(getLastPlayerData.getPlayerId(), playerObject.getPlayerId(), playerObjList.length);
-                    // Remove playerObjList.length == 1 check to allow bot as last player
-                    if (getLastPlayerData.getPlayerId() == playerObject.getPlayerId()) {
-                        stopSelectionTimer();
+                    if (getLastPlayerData.getPlayerId() == playerObject.getPlayerId() && playerObjList.length == 1) {
+                        stopSelectionTimer()
                         // Krunal
                         const getNewPlayerObj = _.filter(playerObjList, (_player) => {
-                            return _player.getPlayerStandUpOrNot() == true;
-                        });
+                            return _player.getPlayerStandUpOrNot() == true
+                        })
                         console.log("getNewPlayerObj ::::::::::************************************:::::::::", getNewPlayerObj.length);
                         console.log("playerObjList ::::::::::************************************:::::::::", playerObjList.length);
                         if (playerObjList.length >= 1 || getNewPlayerObj.length >= 1) {
-                            isRoomDelete = false;
+                            isRoomDelete = false
                         } else {
-                            isRoomDelete = true;
+                            isRoomDelete = true
                         }
                         // Krunal
                         console.log("------- isRoomDelete -------", isRoomDelete);
@@ -2141,46 +2425,44 @@ function botAutoPlayIfNeeded() {
             }
 
             if (getActivePlayersObject().length == 1 && !winnerDeclaration && !noWinnerDealer) {
-                // Treat bot as a normal player for winner declaration
-                onlyOnePlayerLeft = true;
-                winnerDeclaration = true;
+                onlyOnePlayerLeft = true
+                winnerDeclaration = true
                 if (!isGameStartOrNot) {
                     setTimeout(() => {
-                        stopTimer();
-                        console.log("-------- One Player Left --------");
+                        stopTimer()
+                        console.log("-------- One Player Left --------")
                         const getLastActivePlayer = _.find(getActivePlayersObject(), (_player) => {
-                            return _player.getIsActive() == true;
-                        });
+                            return _player.getIsActive() == true
+                        })
 
-                        let winnerCondition = getLastActivePlayer;
+                        let winnerCondition = getLastActivePlayer
                         if (gameType == "Variation") {
-                            winnerCondition = getLastActivePlayer && variationGamePlay;
+                            winnerCondition = getLastActivePlayer && variationGamePlay
                         }
 
-                        // Allow bot to win if it is the last active player
                         if (winnerCondition && isGameStarted) {
                             console.log("winnerDealerInSwitchTable");
                             console.log(winnerDealerInSwitchTable);
                             if (!winnerDealerInSwitchTable) {
-                                winnerDealerInSwitchTable = true;
+                                winnerDealerInSwitchTable = true
                                 console.log("-------- Last Player Left He is Win --------");
-                                let winPlayerId = getLastActivePlayer.getPlayerId();
-                                let getTotalWinAmount = tableAmount - getLastActivePlayer.getLoseChips();
-                                tableAmount = tableAmount - calculateWinAmount(getTotalWinAmount);
-                                getLastActivePlayer.setWinChips(getTotalWinAmount - calculateWinAmount(getTotalWinAmount));
-                                getLastActivePlayer.setPlayerAmount(getLastActivePlayer.getPlayerAmount() + tableAmount);
-                                getLastActivePlayer.setWinPlayHand(getLastActivePlayer.getWinPlayHand() + 1);
-                                setWinnerWinAmount(winPlayerId, roomName, gameRound, getTotalWinAmount, getLastActivePlayer.getPlayerAmount());
-                                setAllPlayerLoseAmount(winPlayerId);
-                                io.in(roomName).emit("playerRunningStatus", JSON.stringify({ playerId: playerObject.getPlayerId(), playerStatus: "Packed", lastBetAmount: 0 }));
-                                io.in(roomName).emit("packWinner", JSON.stringify({ playerId: getLastActivePlayer.getPlayerId(), status: true, message: common_message.ALL_PACK_WIN }));
-                                io.in(roomName).emit("allPlayerLeft", JSON.stringify({ status: true }));
+                                let winPlayerId = getLastActivePlayer.getPlayerId()
+                                let getTotalWinAmount = tableAmount - getLastActivePlayer.getLoseChips()
+                                tableAmount = tableAmount - calculateWinAmount(getTotalWinAmount)
+                                getLastActivePlayer.setWinChips(getTotalWinAmount - calculateWinAmount(getTotalWinAmount))
+                                getLastActivePlayer.setPlayerAmount(getLastActivePlayer.getPlayerAmount() + tableAmount)
+                                getLastActivePlayer.setWinPlayHand(getLastActivePlayer.getWinPlayHand() + 1)
+                                setWinnerWinAmount(winPlayerId, roomName, gameRound, getTotalWinAmount, getLastActivePlayer.getPlayerAmount())
+                                setAllPlayerLoseAmount(winPlayerId)
+                                io.in(roomName).emit("playerRunningStatus", JSON.stringify({ playerId: playerObject.getPlayerId(), playerStatus: "Packed", lastBetAmount: 0 }))
+                                io.in(roomName).emit("packWinner", JSON.stringify({ playerId: getLastActivePlayer.getPlayerId(), status: true, message: common_message.ALL_PACK_WIN }))
+                                io.in(roomName).emit("allPlayerLeft", JSON.stringify({ status: true }))
                             }
                             if (isGameRunning) {
-                                gameRestart();
+                                gameRestart()
                             }
                         }
-                    }, leftWinnerTimer);
+                    }, leftWinnerTimer)
                 }
             }
             if (getActivePlayersObject().length != 0 && !noWinnerDealer) {
@@ -2462,10 +2744,12 @@ function botAutoPlayIfNeeded() {
     }
     const gameRestart = () => {
         console.log("--> Game Restart <--");
+        
+        // Stop bot action timer if running
+        stopBotActionTimer()
+        
         isGameRunning = false
         isSlideShowSelected = false
-            botsSpawned = false; // Reset bot spawn flag
-
         activePlayer = undefined
         tableValueLimit.boot_value = tableValueLimitReset
         io.in(roomName).emit("roomLimit", JSON.stringify(tableValueLimit))
@@ -2561,6 +2845,11 @@ function botAutoPlayIfNeeded() {
                                     isGameStarted = false
                                     clearPlayerCard()
                                     console.log("-- Not Game Restart Under New Game--", { message: common_message.WAITING_ANOTHER })
+                                    
+                                    // Start bot join timer if no human players
+                                    if (playerObjList.length === 0) {
+                                        startBotJoinTimer()
+                                    }
                                     io.in(roomName).emit("findAnotherPlayer", JSON.stringify({ message: common_message.WAITING_ANOTHER }))
                                 }, 1000)
                             }
@@ -2719,6 +3008,7 @@ function botAutoPlayIfNeeded() {
         return playerCard
     }
     const getNextPlayer = (dealerPlayerId, isDealer = false) => {
+        console.log("---- Find NextPlayer ----");
         if (playerObjList.length != 0) {
             if (!isDealer && activePlayer) {
                 dealerPlayerId = activePlayer.getPlayerId()
@@ -2772,7 +3062,7 @@ function botAutoPlayIfNeeded() {
             let option
             let noWarning = false
             const getNextPlayerData = getPreviousPlayer()
-            // console.log("---------- Get Next Player Data --------- ", getNextPlayerData);
+
             if (getNextPlayerData) {
 
                 let nextPlayerCardSeen = getNextPlayerData.getIsCardSeen()
@@ -2828,7 +3118,7 @@ function botAutoPlayIfNeeded() {
                         }
                     }
                 } else {
-                    if (getActivePlayersObject && getActivePlayersObject().length == 2) {
+                    if (getActivePlayersObject().length == 2) {
                         option = {
                             "pack": true,
                             "blind": false,
@@ -2867,6 +3157,11 @@ function botAutoPlayIfNeeded() {
                 console.log("-- My Option --");
                 // console.log(myOption);
                 io.in(roomName).emit("sendPlayerOption", JSON.stringify(myOption))
+                
+                // If active player is bot, make bot play
+                if (botPlayer && activePlayer.getPlayerId() === botPlayer.getPlayerId() && isBotActive) {
+                    makeBotPlay()
+                }
             }
         }
     }
@@ -3059,11 +3354,6 @@ function botAutoPlayIfNeeded() {
         onePlayerInterval = setInterval(() => {
             onePlayerTime--
             console.log("One Player Timer", onePlayerTime);
-            // If only one human player is left in the room, add a bot
-            const humanPlayers = playerObjList.filter(p => !isBotPlayer(p));
-            if (humanPlayers.length === 1 && playerObjList.length === 1) {
-                addBotPlayer(io, roomName, tableValueLimit, playerObjList, playerSitting, newPlayerJoinObj, roomIsFull);
-            }
             if (playerObjList.length > 1 || playerObjList.length == 0) {
                 onePlayerStopTimer()
             }
@@ -3084,6 +3374,9 @@ function botAutoPlayIfNeeded() {
         console.log("One Player Stop Timer");
         clearInterval(onePlayerInterval)
         onePlayerTime = onePlayerDefaultTime
+        
+        // Stop bot action timer if running
+        stopBotActionTimer()
     }
 
     //Standup Player Left Timer
@@ -3100,7 +3393,7 @@ function botAutoPlayIfNeeded() {
     //                 let getStandUpIndex = _.findIndex((_player) => {
     //                     return _player.playerId == _playerId
     //                 })
-    //                 io.in(roomName).emit("onePlayerLeft", JSON.stringify({ status: common_message.WAITING_ANOTHER }))
+    //                 io.in(roomName).emit("onePlayerLeft", JSON.stringify({ status: true }))
     //                 newPlayerJoinObj.splice(newPlayerJoinObj.indexOf(getStandUpIndex))
     //             }
     //         }
@@ -3144,7 +3437,7 @@ function botAutoPlayIfNeeded() {
                                     console.log("No Reconnection");
                                 } else {
                                     console.log("------------------------ Reconnection ------------------------");
-                                    playerDisconnectInGamePlay("defaultDisconnect", playerObject, playerObject.getSocketId())
+                                    playerDisconnectInGamePlay("defaultDisconnect", playerObject, playerObject.getSocketId(), true)
                                 }
                             }
 
@@ -3155,7 +3448,7 @@ function botAutoPlayIfNeeded() {
                                 }
                                 if (getActivePlayersObject().length == 1) {
                                     const getLastActivePlayer = _.find(getActivePlayersObject(), (_player) => {
-                                        return _player.getIsActive() == true;
+                                        return _player.getIsActive() == true
                                     })
                                     if (getLastActivePlayer) {
                                         isGameEnd = true
@@ -3167,8 +3460,7 @@ function botAutoPlayIfNeeded() {
                                         getLastActivePlayer.setWinPlayHand(getLastActivePlayer.getWinPlayHand() + 1)
                                         setWinnerWinAmount(winPlayerId, roomName, gameRound, getTotalWinAmount, getLastActivePlayer.getPlayerAmount())
                                         setAllPlayerLoseAmount(winPlayerId)
-                                        io.in(roomName).emit("playerRunningStatus", JSON.stringify({ playerId: playerObject.getPlayerId(), playerStatus: "Packed", lastBetAmount: 0 }));
-                                        io.in(roomName).emit("packWinner", JSON.stringify({ playerId: getLastActivePlayer.getPlayerId(), status: true, message: common_message.ALL_PACK_WIN }));
+                                        io.in(roomName).emit("packWinner", JSON.stringify({ playerId: getLastActivePlayer.getPlayerId(), status: true, message: common_message.ALL_PACK_WIN }))
                                         gameRestart()
                                     }
                                 }
@@ -3194,6 +3486,9 @@ function botAutoPlayIfNeeded() {
         // console.log('playerObjList----=-=-=-=-=-=-=-=-==--=-=-=-=-=-=-=>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>', playerObjList.length);
         clearInterval(turnInterval)
         time = defaultTime
+        
+        // Stop bot action timer if running
+        stopBotActionTimer()
     }
     this.turnTimerClearInterval = () => {
         clearInterval(turnInterval)
@@ -3217,6 +3512,9 @@ function botAutoPlayIfNeeded() {
         // console.log("- Stop Variation Timer -");
         clearInterval(selectionInterval)
         selectionTime = selectionDefaultTime
+        
+        // Stop bot action timer if running
+        stopBotActionTimer()
     }
     this.variationTimerClearInterval = () => {
         clearInterval(selectionInterval)
