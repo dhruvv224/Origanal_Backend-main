@@ -544,6 +544,7 @@ function botAutoPlayIfNeeded() {
                             if (getActivePlayersObject().length !== 1) {
                                 if (playerOption !== "show") {
                                     sendPlayerOption(activePlayer.getSocketId(), activePlayer.getIsCardSeen());
+                                    // check 1
                                     startTimer();
                                 }
                             }
@@ -1453,6 +1454,7 @@ function botAutoPlayIfNeeded() {
                         if (getActivePlayersObject().length != 1) {
                             if (playerOption != "show") {
                                 sendPlayerOption(activePlayer.getSocketId(), activePlayer.getIsCardSeen());
+                                // check 2
                                 startTimer();
                             }
                         }
@@ -2208,6 +2210,7 @@ function botAutoPlayIfNeeded() {
                         stopTimer()
                         setActivePlayer(getNextPlayer())
                         sendPlayerOption(activePlayer.getSocketId(), activePlayer.getIsCardSeen())
+                        // check 3
                         startTimer()
                     } else {
                         console.log("Four Not Three");
@@ -2218,6 +2221,7 @@ function botAutoPlayIfNeeded() {
                                     stopTimer()
                                     setActivePlayer(getNextPlayer())
                                     sendPlayerOption(activePlayer.getSocketId(), activePlayer.getIsCardSeen())
+                                    // check 4
                                     startTimer()
                                 } else {
                                     sendPlayerOption(activePlayer.getSocketId(), activePlayer.getIsCardSeen())
@@ -2464,6 +2468,7 @@ function botAutoPlayIfNeeded() {
                             if (!onlyOnePlayerLeft) {
                                 if (playerObjList.length > 1) {
                                     sendPlayerOption(getPlayerTurnObj.getSocketId(), getDealer.getIsCardSeen())
+                                    // check 5
                                     startTimer()
                                 }
                             }
@@ -2890,6 +2895,7 @@ function botAutoPlayIfNeeded() {
         console.log("---------- Send Option --------- ")
         setActivePlayer(getNextPlayer())
         sendPlayerOption(activePlayer.getSocketId(), activePlayer.getIsCardSeen())
+        // check 6
         startTimer()
     }
     function getPreviousPlayer() {
