@@ -370,80 +370,59 @@ function botAutoPlayIfNeeded() {
 
         console.log(`[BOT] Decided action: ${botAction}, amount: ${botAmount}`);
 
-        // Clear any existing timer to prevent multiple actions
-        if (botActionTimer) {
-            clearTimeout(botActionTimer);
-            botActionTimer = null;
-        }
-
-        // Random delay before seeing card
+        // Handle bot seeing cards
         if (
             activePlayer.getIsCardSeen && !activePlayer.getIsCardSeen() &&
             activePlayer.getPlayerAmount && activePlayer.getPlayerAmount() > option.amount * 2 &&
             Math.random() < 0.4
         ) {
-            botActionTimer = setTimeout(() => {
-                if (activePlayer.setIsCardSeen) {
-                    activePlayer.setIsCardSeen(true);
-                    console.log(`[BOT] Bot sees cards.`);
-                }
-                if (typeof io !== "undefined" && io && typeof roomName !== "undefined") {
-                    io.in(roomName).emit("playerRunningStatus", JSON.stringify({ 
-                        playerId: activePlayer.getPlayerId(), 
-                        playerStatus: "Card Seen", 
-                        lastBetAmount: 0 
-                    }));
-                }
-                // After seeing card, advance to bot's next action
-                botActionTimer = setTimeout(() => {
-                    console.log(`[BOT] Bot thinking after seeing card...`);
-                    botAutoPlayIfNeeded();
-                }, 800 + Math.random() * 1200);
-            }, 1200 + Math.random() * 2000);
+            if (activePlayer.setIsCardSeen) {
+                activePlayer.setIsCardSeen(true);
+                console.log(`[BOT] Bot sees cards.`);
+            }
+            if (typeof io !== "undefined" && io && typeof roomName !== "undefined") {
+                io.in(roomName).emit("playerRunningStatus", JSON.stringify({ 
+                    playerId: activePlayer.getPlayerId(), 
+                    playerStatus: "Card Seen", 
+                    lastBetAmount: 0 
+                }));
+            }
+            // Recursively call to take action after seeing card
+            console.log(`[BOT] Bot thinking after seeing card...`);
+            botAutoPlayIfNeeded();
             return;
         }
 
-        // Random delay before action
-        botActionTimer = setTimeout(() => {
-            let playerOption = botAction;
-            let amount = botAmount;
-            if (playerOption == "sideShow") amount = blindAmount;
+        // Execute bot action
+        let playerOption = botAction;
+        let amount = botAmount;
+        if (playerOption == "sideShow") amount = blindAmount;
 
-            console.log(`[BOT] Playing round: option=${playerOption}, amount=${amount}`);
+        console.log(`[BOT] Playing round: option=${playerOption}, amount=${amount}`);
 
-            if (Room && typeof Room.prototype._simulateBotPlayRound === "function") {
-                if (activePlayer && typeof activePlayer.getPlayerId === "function") {
-                    Room.prototype._simulateBotPlayRound.call(this, {
-                        playerId: activePlayer.getPlayerId(),
-                        playerOption,
-                        amount
-                    });
-                    // Clear timer after action
-                    if (botActionTimer) {
-                        clearTimeout(botActionTimer);
-                        botActionTimer = null;
-                    }
-                    // Check if the next player is a real player
-                    const nextPlayer = getNextPlayer();
-                    if (nextPlayer && !isBotPlayer(nextPlayer)) {
-                        console.log(`[BOT] Next player is a real player, stopping timer.`);
-                        stopTimer(); // Stop the timer for real player turn
-                    }
-                    // Advance to next player after bot plays
-                    advanceToNextPlayer();
-                } else {
-                    console.log('[BOT] Error: activePlayer is undefined or invalid in botAutoPlayIfNeeded.');
+        if (Room && typeof Room.prototype._simulateBotPlayRound === "function") {
+            if (activePlayer && typeof activePlayer.getPlayerId === "function") {
+                Room.prototype._simulateBotPlayRound.call(this, {
+                    playerId: activePlayer.getPlayerId(),
+                    playerOption,
+                    amount
+                });
+                // Check if the next player is a real player
+                const nextPlayer = getNextPlayer();
+                if (nextPlayer && !isBotPlayer(nextPlayer)) {
+                    console.log(`[BOT] Next player is a real player, stopping timer.`);
+                    stopTimer(); // Stop the timer for real player turn
                 }
+                // Advance to next player after bot plays
+                advanceToNextPlayer();
             } else {
-                console.log('[BOT] _simulateBotPlayRound not found.');
+                console.log('[BOT] Error: activePlayer is undefined or invalid in botAutoPlayIfNeeded.');
             }
-        }, 1500 + Math.random() * 2500);
+        } else {
+            console.log('[BOT] _simulateBotPlayRound not found.');
+        }
     } catch (err) {
         console.log('[BOT] Error in botAutoPlayIfNeeded:', err);
-        if (botActionTimer) {
-            clearTimeout(botActionTimer);
-            botActionTimer = null;
-        }
     }
 }
 // ...existing code...
@@ -2481,6 +2460,13 @@ function botAutoPlayIfNeeded() {
                                     // check 5
                                     console.log("check 5");
                                     startTimer()
+                                    const currentActivePlayer = activePlayer.getPlayerId();
+                                    const checkBotObj = playerObjList.find((_p) => _p.getPlayerId() == currentActivePlayer);
+                                    if (isBotPlayer(checkBotObj)) {
+                                        console.log("Active Player is a Bot, triggering auto play");
+                                        botAutoPlayIfNeeded();
+                                        stopTimer();
+                                    }
                                 }
                             }
                         }, 3000)
