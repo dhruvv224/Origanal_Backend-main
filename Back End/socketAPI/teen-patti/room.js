@@ -2219,6 +2219,7 @@ function botAutoPlayIfNeeded() {
                         setActivePlayer(getNextPlayer())
                         sendPlayerOption(activePlayer.getSocketId(), activePlayer.getIsCardSeen())
                         // check 3
+                        console.log("check 3");
                         startTimer()
                     } else {
                         console.log("Four Not Three");
@@ -2230,6 +2231,7 @@ function botAutoPlayIfNeeded() {
                                     setActivePlayer(getNextPlayer())
                                     sendPlayerOption(activePlayer.getSocketId(), activePlayer.getIsCardSeen())
                                     // check 4
+                                    console.log("check 4");
                                     startTimer()
                                 } else {
                                     sendPlayerOption(activePlayer.getSocketId(), activePlayer.getIsCardSeen())
@@ -2477,6 +2479,7 @@ function botAutoPlayIfNeeded() {
                                 if (playerObjList.length > 1) {
                                     sendPlayerOption(getPlayerTurnObj.getSocketId(), getDealer.getIsCardSeen())
                                     // check 5
+                                    console.log("check 5");
                                     startTimer()
                                 }
                             }
@@ -2904,6 +2907,7 @@ function botAutoPlayIfNeeded() {
         setActivePlayer(getNextPlayer())
         sendPlayerOption(activePlayer.getSocketId(), activePlayer.getIsCardSeen())
         // check 6
+        console.log("check 6");
         startTimer()
     }
     function getPreviousPlayer() {
