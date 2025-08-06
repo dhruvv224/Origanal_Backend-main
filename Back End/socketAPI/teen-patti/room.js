@@ -720,10 +720,10 @@ function botAutoPlayIfNeeded() {
                         lastBetAmount: 0 
                     }));
                 }
-                // After seeing card, advance to bot's next action
+                // After seeing card, bot decides action again
                 setTimeout(() => {
                     console.log(`[BOT] Bot thinking after seeing card...`);
-                    botAutoPlayIfNeeded(); // Re-run to decide action after seeing cards
+                    botAutoPlayIfNeeded();
                 }, 800 + Math.random() * 1200);
             }, delay);
             return;
@@ -3236,92 +3236,91 @@ function botAutoPlayIfNeeded() {
         sendPlayerOption(activePlayer.getSocketId(), activePlayer.getIsCardSeen())
         startTimer()
     }
-  function getPreviousPlayer() {
-    console.log("---------- Find Get Previous Player --------- ");
-    const currentActivePlayer = activePlayer.getPlayerId();
-    console.log("-----------------------Active players-------------------------", currentActivePlayer);
+    function getPreviousPlayer() {
+        console.log("---------- Find Get Previous Player --------- ");
+        const currentActivePlayer = activePlayer.getPlayerId();
+        console.log("-----------------------Active players-------------------------", currentActivePlayer);
 
-    let index = playerObjList.findIndex(
-        (_p) => _p.getPlayerId() == currentActivePlayer
-    );
+        let index = playerObjList.findIndex(
+            (_p) => _p.getPlayerId() == currentActivePlayer
+        );
 
-    let isSearchingForPreviousPlayer = true;
-    start: while (isSearchingForPreviousPlayer) {
-        index = index - 1;
-        if (index == -1) {
-            index = playerObjList.length - 1;
+        let isSearchingForPreviousPlayer = true;
+        start: while (isSearchingForPreviousPlayer) {
+            index = index - 1;
+            if (index == -1) {
+                index = playerObjList.length - 1;
+            }
+
+            if (playerObjList.length > 1 && playerObjList[index]) {
+                if (playerObjList[index].getIsActive()) {
+                    isSearchingForPreviousPlayer = false;
+                    break;
+                } else {
+                    if (getActivePlayersObject().length > 1) {
+                        continue start;
+                    } else {
+                        console.log("No Stuck Break While Loop Previous Player");
+                        break start;
+                    }
+                }
+            } else {
+                break start;
+            }
+        }
+        return playerObjList[index];
+    }
+
+    function advanceToNextPlayer() {
+        console.log("---------- Advancing to Next Player --------- ");
+        const currentActivePlayer = activePlayer.getPlayerId();
+        let index = playerObjList.findIndex(
+            (_p) => _p.getPlayerId() == currentActivePlayer
+        );
+
+        let isSearchingForNextPlayer = true;
+        start: while (isSearchingForNextPlayer) {
+            index = (index + 1) % playerObjList.length;
+
+            if (playerObjList.length > 1 && playerObjList[index]) {
+                if (playerObjList[index].getIsActive()) {
+                    isSearchingForNextPlayer = false;
+                    break;
+                } else {
+                    if (getActivePlayersObject().length > 1) {
+                        continue start;
+                    } else {
+                        console.log("No Stuck Break While Loop Next Player");
+                        break start;
+                    }
+                }
+            } else {
+                break start;
+            }
         }
 
-        if (playerObjList.length > 1 && playerObjList[index]) {
-            if (playerObjList[index].getIsActive()) {
-                isSearchingForPreviousPlayer = false;
-                break;
-            } else {
-                if (getActivePlayersObject().length > 1) {
-                    continue start;
-                } else {
-                    console.log("No Stuck Break While Loop Previous Player");
-                    break start;
-                }
+        const nextPlayer = playerObjList[index];
+        if (nextPlayer) {
+            console.log(`[GAME] Advancing to player: ${nextPlayer.getPlayerObject().name} (${nextPlayer.getPlayerId()})`);
+            activePlayer = nextPlayer;
+            if (typeof io !== "undefined" && io && typeof roomName !== "undefined") {
+                io.in(roomName).emit("playerTurn", {
+                    playerId: nextPlayer.getPlayerId(),
+                    playerName: nextPlayer.getPlayerObject().name
+                });
+            }
+            // If the next player is a bot, trigger bot play
+            if (isBotPlayer(nextPlayer)) {
+                console.log(`[GAME] Next player is a bot, triggering botAutoPlayIfNeeded`);
+                setTimeout(() => {
+                    botAutoPlayIfNeeded();
+                }, 500); // Small delay to ensure turn is set
             }
         } else {
-            break start;
+            console.log('[GAME] Error: No valid next player found.');
         }
     }
-    return playerObjList[index];
-}
-
-
-function advanceToNextPlayer() {
-    console.log("---------- Advancing to Next Player --------- ");
-    const currentActivePlayer = activePlayer.getPlayerId();
-    let index = playerObjList.findIndex(
-        (_p) => _p.getPlayerId() == currentActivePlayer
-    );
-
-    let isSearchingForNextPlayer = true;
-    start: while (isSearchingForNextPlayer) {
-        index = (index + 1) % playerObjList.length;
-
-        if (playerObjList.length > 1 && playerObjList[index]) {
-            if (playerObjList[index].getIsActive()) {
-                isSearchingForNextPlayer = false;
-                break;
-            } else {
-                if (getActivePlayersObject().length > 1) {
-                    continue start;
-                } else {
-                    console.log("No Stuck Break While Loop Next Player");
-                    break start;
-                }
-            }
-        } else {
-            break start;
-        }
-    }
-
-    const nextPlayer = playerObjList[index];
-    if (nextPlayer) {
-        console.log(`[GAME] Advancing to player: ${nextPlayer.getPlayerObject().name} (${nextPlayer.getPlayerId()})`);
-        activePlayer = nextPlayer;
-        if (typeof io !== "undefined" && io && typeof roomName !== "undefined") {
-            io.in(roomName).emit("playerTurn", {
-                playerId: nextPlayer.getPlayerId(),
-                playerName: nextPlayer.getPlayerObject().name
-            });
-        }
-        // If the next player is a bot, trigger bot play
-        if (isBotPlayer(nextPlayer)) {
-            console.log(`[GAME] Next player is a bot, triggering botAutoPlayIfNeeded`);
-            setTimeout(() => {
-                botAutoPlayIfNeeded();
-            }, 500); // Small delay to ensure turn is set
-        }
-    } else {
-        console.log('[GAME] Error: No valid next player found.');
-    }
-}
-
+    
     const roomWinLoseChips = () => {
         _.map(playerObjList, (_player) => {
             _player.setRoomWinLoseChips(_player.getPlayerAmount() - _player.getEnterAmount())
