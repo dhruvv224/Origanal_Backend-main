@@ -31,6 +31,12 @@ const Player = function () {
     let playerStandUpOrNot = false
     let playerTimeOut = false
     let playerReconnection = false
+    
+    // Bot-specific properties
+    let isBot = false
+    let botAggressiveness = 0.5  // Default 0.5 (0 = passive, 1 = aggressive)
+    let botPatience = 0.5         // Default 0.5 (0 = impatient, 1 = patient)
+    let botLastActionTime = 0
 
     this.betAmount = {
         get amount() {
@@ -40,6 +46,34 @@ const Player = function () {
             playerBetAmount = _amount
         }
     }
+
+    // Bot methods
+    this.getIsBot = () => {
+        return isBot
+    }
+    this.setIsBot = (_isBot) => {
+        isBot = _isBot
+    }
+    this.getBotAggressiveness = () => {
+        return botAggressiveness
+    }
+    this.setBotAggressiveness = (value) => {
+        botAggressiveness = Math.max(0, Math.min(1, value)) // Ensure between 0-1
+    }
+    this.getBotPatience = () => {
+        return botPatience
+    }
+    this.setBotPatience = (value) => {
+        botPatience = Math.max(0, Math.min(1, value)) // Ensure between 0-1
+    }
+    this.getBotLastActionTime = () => {
+        return botLastActionTime
+    }
+    this.setBotLastActionTime = (time) => {
+        botLastActionTime = time
+    }
+
+    // Existing methods
     this.getPlayerReconnection = () => {
         return playerReconnection
     }
@@ -122,7 +156,6 @@ const Player = function () {
         return playerAmount
     }
     this.setPlayerAmount = async (_playerAmount) => {
-        // playerAmount = _playerAmount > 0 ? _playerAmount : 0
         playerAmount = _playerAmount
     }
     this.getCard = () => {

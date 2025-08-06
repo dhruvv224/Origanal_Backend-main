@@ -31,75 +31,66 @@ const Room = function (io, AllInOne) {
     let botActionTimer = null
     let isBotActive = false
 
-    // Bot player functions
-    const createBotPlayer = () => {
-        if (botPlayer) return botPlayer
+  // Add this to the createBotPlayer function
+const createBotPlayer = () => {
+    if (botPlayer) return botPlayer;
 
-        const randomName = BOT_NAMES[Math.floor(Math.random() * BOT_NAMES.length)]
-        const botId = `bot_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-        
-        const botPlayerObject = {
-            _id: botId,
-            name: randomName,
-            avatar_id: Math.floor(Math.random() * 10) + 1,
-            profile_pic: "",
-            chips: 10000, // Default bot chips
-            isBot: true
-        }
+    const randomName = BOT_NAMES[Math.floor(Math.random() * BOT_NAMES.length)];
+    const botId = `bot_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    // Random chips between 5000-15000 for variety
+    const botChips = Math.floor(Math.random() * 10000) + 5000;
+    
+    const botPlayerObject = {
+        _id: botId,
+        name: randomName,
+        avatar_id: Math.floor(Math.random() * 10) + 1,
+        profile_pic: "",
+        chips: botChips,
+        isBot: true
+    };
 
-        botPlayer = new Player(io)
-        botPlayer.setRoomName(roomName)
-        botPlayer.setPlayerId(botId)
-        botPlayer.setPlayerObjectId(botId)
-        botPlayer.setSocketId(`bot_socket_${botId}`)
-        botPlayer.setPlayerObject(botPlayerObject)
-        botPlayer.setDealerPosition(0)
-        botPlayer.setEnterAmount(10000)
-        botPlayer.setPlayerAmount(10000)
-        botPlayer.setPlayerPosition(0)
-        botPlayer.setPlayerStandUp(false)
-        botPlayer.setPlayerStandUpOrNot(false)
-        botPlayer.setIsActive(true)
-
-        return botPlayer
-    }
-
-    // ...existing code...
-
-const startBotJoinTimer = () => {
-    console.log("[BOT] startBotJoinTimer called");
-    if (botJoinTimer) {
-        clearTimeout(botJoinTimer)
-    }
-    botJoinTimer = setTimeout(() => {
-        console.log(`[BOT] Timer fired. playerObjList.length=${playerObjList.length}, isGameStarted=${isGameStarted}, isBotActive=${isBotActive}`);
-        if (playerObjList.length === 0 && !isGameStarted && !isBotActive) {
-            console.log("[BOT] Conditions met, calling addBotPlayer()");
-            addBotPlayer()
-        } else {
-            console.log("[BOT] Conditions NOT met, bot not added");
-        }
-    }, 3000)
+    botPlayer = new Player(io);
+    botPlayer.setRoomName(roomName);
+    botPlayer.setPlayerId(botId);
+    botPlayer.setPlayerObjectId(botId);
+    botPlayer.setSocketId(`bot_socket_${botId}`);
+    botPlayer.setPlayerObject(botPlayerObject);
+    botPlayer.setDealerPosition(0);
+    botPlayer.setEnterAmount(botChips);
+    botPlayer.setPlayerAmount(botChips);
+    botPlayer.setPlayerPosition(0);
+    botPlayer.setPlayerStandUp(false);
+    botPlayer.setPlayerStandUpOrNot(false);
+    botPlayer.setIsActive(true);
+    
+    // Set bot personality traits
+    botPlayer.setBotAggressiveness(Math.random()); // 0-1 scale
+    botPlayer.setBotPatience(Math.random()); // 0-1 scale
+    
+    return botPlayer;
 }
 
+    // ...existing code...
 const addBotPlayer = () => {
     console.log("[BOT] addBotPlayer called");
     if (isBotActive || playerObjList.length > 0) {
         console.log(`[BOT] Bot already active or players present. isBotActive=${isBotActive}, playerObjList.length=${playerObjList.length}`);
-        return
+        return;
     }
-    const bot = createBotPlayer()
-    const emptyPosition = _.find(playerSitting, (_position) => { 
-        return _position.isPlayerSitting == false 
-    })
-    console.log(`[BOT] emptyPosition:`, emptyPosition);
-    if (emptyPosition) {
-        emptyPosition.isPlayerSitting = true
-        bot.setPlayerPosition(emptyPosition.position)
-        playerObjList.push(bot)
-        isBotActive = true
+    
+    const bot = createBotPlayer();
+    const emptyPositions = playerSitting.filter(pos => !pos.isPlayerSitting);
+    
+    if (emptyPositions.length > 0) {
+        const randomPosition = emptyPositions[Math.floor(Math.random() * emptyPositions.length)];
+        randomPosition.isPlayerSitting = true;
+        
+        bot.setPlayerPosition(randomPosition.position);
+        playerObjList.push(bot);
+        isBotActive = true;
 
-        console.log("[BOT] Bot player added:", bot.getPlayerObject().name, "at position", emptyPosition.position);
+        console.log(`[BOT] ${bot.getPlayerObject().name} joined at position ${randomPosition.position}`);
 
         // Emit bot join event
         io.in(roomName).emit("newPlayerJoin", JSON.stringify({ 
@@ -107,79 +98,139 @@ const addBotPlayer = () => {
             dealerId: 0, 
             status: true, 
             tableAmount: tableAmount 
-        }))
-        io.in(roomName).emit("joinRoomData", JSON.stringify({ roomName: roomName, playerData: platerSittingInRoom(getAllPlayerData()) }))
-        io.in(roomName).emit("allActivePlayerData", JSON.stringify({ playerData: getAllPlayPlayer() }))
+        }));
+        
+        io.in(roomName).emit("joinRoomData", JSON.stringify({ 
+            roomName: roomName, 
+            playerData: platerSittingInRoom(getAllPlayerData()) 
+        }));
+        
+        io.in(roomName).emit("allActivePlayerData", JSON.stringify({ 
+            playerData: getAllPlayPlayer() 
+        }));
 
         // Start game if bot is the only player
         if (playerObjList.length === 1) {
             setTimeout(() => {
                 if (!isGameStarted) {
                     console.log("[BOT] Only bot in room, starting game");
-                    gameStart()
+                    gameStart();
                 }
-            }, 1000)
+            }, 2000); // Increased delay for more natural feel
         }
     } else {
         console.log("[BOT] No empty position for bot");
     }
 }
+const startBotJoinTimer = () => {
+    console.log("[BOT] startBotJoinTimer called");
+    if (botJoinTimer) {
+        clearTimeout(botJoinTimer);
+    }
+    botJoinTimer = setTimeout(() => {
+        console.log(`[BOT] Timer fired. playerObjList.length=${playerObjList.length}, isGameStarted=${isGameStarted}, isBotActive=${isBotActive}`);
+        if (playerObjList.length === 0 && !isGameStarted && !isBotActive) {
+            console.log("[BOT] Conditions met, calling addBotPlayer()");
+            addBotPlayer();
+        } else {
+            console.log("[BOT] Conditions NOT met, bot not added");
+            // Restart timer if conditions aren't met yet
+            startBotJoinTimer();
+        }
+    }, 10000); // Increased to 10 seconds for more realistic timing
+}
+
 
 // ...existing code...
     const removeBotPlayer = () => {
-        if (botPlayer && isBotActive) {
-            const botIndex = playerObjList.findIndex(player => player.getPlayerId() === botPlayer.getPlayerId())
-            if (botIndex !== -1) {
-                const botPosition = botPlayer.getPlayerPosition()
-                emptyPlayerPosition(botPosition)
-                playerObjList.splice(botIndex, 1)
-                
-                io.in(roomName).emit("playerLeft", JSON.stringify({ playerId: botPlayer.getPlayerId() }))
-                
-                botPlayer = null
-                isBotActive = false
-                console.log("Bot player removed")
+    if (botPlayer && isBotActive) {
+        const botIndex = playerObjList.findIndex(player => player.getPlayerId() === botPlayer.getPlayerId());
+        if (botIndex !== -1) {
+            const botPosition = botPlayer.getPlayerPosition();
+            emptyPlayerPosition(botPosition);
+            playerObjList.splice(botIndex, 1);
+            
+            io.in(roomName).emit("playerLeft", JSON.stringify({ playerId: botPlayer.getPlayerId() }));
+            
+            botPlayer = null;
+            isBotActive = false;
+            console.log("Bot player removed");
+            
+            // Clear any pending bot timers
+            stopBotActionTimer();
+            if (botJoinTimer) {
+                clearTimeout(botJoinTimer);
+                botJoinTimer = null;
             }
         }
     }
+}
+const makeBotPlay = () => {
+    if (!botPlayer || !isBotActive || !activePlayer || activePlayer.getPlayerId() !== botPlayer.getPlayerId()) {
+        return;
+    }
 
-    const makeBotPlay = () => {
+    // Random delay between 2-5 seconds to simulate human thinking
+    const randomDelay = Math.floor(Math.random() * 3000) + 2000;
+    
+    botActionTimer = setTimeout(() => {
         if (!botPlayer || !isBotActive || !activePlayer || activePlayer.getPlayerId() !== botPlayer.getPlayerId()) {
-            return
+            return;
         }
 
-        // Random delay between 3-8 seconds to simulate human thinking
-        const randomDelay = Math.floor(Math.random() * 5000) + 3000
+        // Get game state information
+        const activePlayers = getActivePlayersObject();
+        const isLastPlayer = activePlayers.length === 2;
+        const hasSeenCards = botPlayer.getIsCardSeen();
+        const botChips = botPlayer.getPlayerAmount();
         
-        botActionTimer = setTimeout(() => {
-            if (!botPlayer || !isBotActive || !activePlayer || activePlayer.getPlayerId() !== botPlayer.getPlayerId()) {
-                return
-            }
+        // Determine possible actions
+        let possibleActions = [];
+        
+        // Always can pack
+        possibleActions.push("pack");
+        
+        // Can do blind if hasn't seen cards
+        if (!hasSeenCards) {
+            possibleActions.push("blind");
+        } else {
+            possibleActions.push("chaal");
+        }
+        
+        // Can show if last player
+        if (isLastPlayer) {
+            possibleActions.push("show");
+        }
+        
+        // Can side show if not last player and has seen cards
+        if (!isLastPlayer && hasSeenCards) {
+            possibleActions.push("sideShow");
+        }
 
-            const botOptions = ["pack", "chaal", "blind"]
-            const randomOption = botOptions[Math.floor(Math.random() * botOptions.length)]
-            
-            // Calculate bet amount based on current minimum bet
-            let betAmount = minimumBetAmount
-            if (randomOption === "chaal" || randomOption === "blind") {
-                betAmount = Math.min(betAmount, botPlayer.getPlayerAmount())
-            }
+        // Choose random action from possible ones
+        const randomAction = possibleActions[Math.floor(Math.random() * possibleActions.length)];
+        
+        // Calculate bet amount based on current minimum bet
+        let betAmount = minimumBetAmount;
+        if (randomAction === "chaal" || randomAction === "blind") {
+            // Randomize bet amount slightly
+            const betMultiplier = Math.random() > 0.7 ? 2 : 1; // 30% chance to bet double
+            betAmount = Math.min(betAmount * betMultiplier, botChips);
+        }
 
-            // Simulate bot action
-            const botActionData = {
-                playerId: botPlayer.getPlayerId(),
-                playerOption: randomOption,
-                amount: betAmount
-            }
+        // Simulate bot action
+        const botActionData = {
+            playerId: botPlayer.getPlayerId(),
+            playerOption: randomAction,
+            amount: betAmount
+        };
 
-            console.log(`Bot ${botPlayer.getPlayerObject().name} playing: ${randomOption} with amount ${betAmount}`)
-            
-            // Trigger the playRound logic directly
-            handleBotPlayRound(botActionData)
-            
-        }, randomDelay)
-    }
-
+        console.log(`[BOT] ${botPlayer.getPlayerObject().name} playing: ${randomAction} with amount ${betAmount}`);
+        
+        // Trigger the playRound logic
+        handleBotPlayRound(botActionData);
+    }, randomDelay);
+}
     const handleBotPlayRound = (botActionData) => {
         let { playerId, playerOption, amount } = botActionData
 
@@ -502,7 +553,12 @@ const addBotPlayer = () => {
         currentRoomDealer = _currentRoomDealer
     }
     this.connectPlayer = async (socket, playerId, playerObject, dealerPosition, invitePlayer = false, reconnection = false) => {
-
+  if (playerObjList.length === 0 && !isGameStarted) {
+        // Remove bot if human players join
+        if (isBotActive && botPlayer) {
+            removeBotPlayer();
+        }
+    }
         console.log("- Player Chips -", playerObject.chips, "- Is Game Started -", isGameStarted)
 
         //Store Player History
