@@ -1458,6 +1458,7 @@ function botAutoPlayIfNeeded() {
                                 // check 2
                                 console.log("Start Timer for next player 2");
                                 startTimer();
+                                const currentActivePlayer = activePlayer.getPlayerId();
                                 const checkBotObj = playerObjList.find((_p) => _p.getPlayerId() == currentActivePlayer);
                                 if (isBotPlayer(checkBotObj)) {
                                     console.log("Active Player is a Bot, triggering auto play");
