@@ -545,6 +545,7 @@ function botAutoPlayIfNeeded() {
                                 if (playerOption !== "show") {
                                     sendPlayerOption(activePlayer.getSocketId(), activePlayer.getIsCardSeen());
                                     // check 1
+                                console.log("Start Timer for next player 1");
                                     startTimer();
                                 }
                             }
@@ -1455,6 +1456,7 @@ function botAutoPlayIfNeeded() {
                             if (playerOption != "show") {
                                 sendPlayerOption(activePlayer.getSocketId(), activePlayer.getIsCardSeen());
                                 // check 2
+                                console.log("Start Timer for next player 2");
                                 startTimer();
                             }
                         }
