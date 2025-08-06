@@ -20,7 +20,6 @@ const Room = function (io, AllInOne) {
     const Dealer = require('../../models/teenpatti/dealer');
     const NoPlayRoom = require('../../models/no_play_room');
     const PlayerHistory = require('../../models/player_history');
-    const BOT_THINKING_DELAY = 1000 + Math.random() * 2000; // 1-3 seconds
 
     let roomName
     let ownerPlayerId
@@ -155,25 +154,7 @@ let botsSpawned = false; // Prevent multiple bot spawns per game/room
         "Ravi", "Priya", "Amit", "Sneha", "Rahul", "Neha", "Vikas", "Pooja", "Arjun", "Simran",
         "Karan", "Anjali", "Manish", "Ritu", "Suresh", "Meena", "Deepak", "Nisha", "Vivek", "Shweta"
     ];
-// Add this function to better manage game state
-const resetGameState = () => {
-    isGameStarted = false;
-    isGameRunning = false;
-    isGameFinished = false;
-    isGameStartOrNot = false;
-    winnerDeclaration = false;
-    variationGamePlay = false;
-    isSlideShowSelected = false;
-    tableAmount = 0;
-    time = defaultTime;
-    selectionTime = selectionDefaultTime;
-    onePlayerTime = onePlayerDefaultTime;
-    stopTimer();
-    stopSelectionTimer();
-    onePlayerStopTimer();
-};
 
-// Call this when starting new games and when cleaning up
    async function addBotPlayer(io, roomName, tableValueLimit, playerObjList, playerSitting, newPlayerJoinObj, roomIsFull) {
     // Only add bots when there are human players waiting
     const humanPlayers = playerObjList.filter(p => !isBotPlayer(p));
@@ -299,31 +280,37 @@ const resetGameState = () => {
   // ...existing code...
 function botAutoPlayIfNeeded() {
     try {
-        // Only proceed if it's actually a bot's turn and game is running
+        // Only proceed if it's actually a bot's turn
         if (!activePlayer || !isBotPlayer(activePlayer) || 
             !isGameStarted || !isGameRunning || isGameStartOrNot) {
             return;
         }
 
         console.log(`[BOT] Bot turn: ${activePlayer.getPlayerObject().name}`);
-        
+
         // Calculate possible actions
         let option = calculateBotOptions();
         
-        // Make bot decision with some randomness
-        const decision = makeBotDecision(option);
+        // Add random delay for more natural gameplay (1-3 seconds)
+        const actionDelay = 1000 + Math.random() * 2000;
         
-        // Execute the bot's move after delay
         setTimeout(() => {
             if (!activePlayer || !isBotPlayer(activePlayer)) {
                 return; // Make sure it's still the bot's turn
             }
+
+            // Make bot decision with some randomness
+            const decision = makeBotDecision(option);
+            
+            // Execute the bot's move
             executeBotMove(decision);
-        }, BOT_THINKING_DELAY);
+            
+        }, actionDelay);
     } catch (err) {
         console.error('[BOT] Error in botAutoPlayIfNeeded:', err);
     }
 }
+
 function calculateBotOptions() {
     const getNextPlayerData = getPreviousPlayer();
     const nextPlayerCardSeen = getNextPlayerData ? getNextPlayerData.getIsCardSeen() : false;
@@ -1874,54 +1861,37 @@ function executeBotMove(decision) {
             // Krunal
         })
 
-   // Replace the disconnect handler with:
-socket.on("disconnect", async (reason) => {
-    console.log("Disconnect - Reason:", reason, "Socket ID:", socket.id);
-    
-    try {
-        socket.leave(roomName);
-        _.forEach(eventRemove, (_event) => {
-            socket.removeAllListeners(`${_event}`);
-        });
+        socket.on("disconnect", async (reason) => {
+            console.log("---------- Disconnect --------- Reason :- ", reason, " Socket ID :- ", socket.id)
 
-        // Handle bot disconnection
-        const botPlayer = _.find(playerObjList, (_player) => 
-            _player.getSocketId() === socket.id && isBotPlayer(_player));
-        
-        if (botPlayer) {
-            console.log(`[BOT] Bot disconnected: ${botPlayer.getPlayerObject().name}`);
-            playerObjList.splice(playerObjList.indexOf(botPlayer), 1);
-            emptyPlayerPosition(botPlayer.getPlayerPosition());
-            io.in(roomName).emit("playerLeft", JSON.stringify({ playerId: botPlayer.getPlayerId() }));
-            return;
-        }
+            socket.leave(roomName, function (err) {
+                _.forEach(eventRemove, (_event) => {
+                    socket.removeAllListeners(`${_event}`)
+                })
+            })
 
-        // Handle human player disconnection
-        const getNewPlayerObj = _.find(newPlayerJoinObj, (_player) => 
-            _player.socketId === socket.id);
-        
-        if (getNewPlayerObj) {
-            console.log('New player disconnected');
-            emptyPlayerPosition(getNewPlayerObj.position);
-            await common_helper.commonQuery(RoomPlayer, "findOneAndUpdate", 
-                { player_data: getNewPlayerObj.playerObject._id, room_name: roomName }, 
-                { $set: { current_playing: false } });
-            newPlayerJoinObj.splice(newPlayerJoinObj.indexOf(getNewPlayerObj), 1);
-        } else {
-            const playerObject = _.find(playerObjList, (_player) => 
-                _player.getSocketId() === socket.id);
-            
-            if (playerObject) {
-                playerObject.setPlayerReconnection(true);
-                console.log("Player set for reconnection");
+            const getNewPlayerObj = _.find(newPlayerJoinObj, (_player) => {
+                return _player.socketId == socket.id
+            })
+            if (getNewPlayerObj) {
+                console.log('heeellllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllll')
+                emptyPlayerPosition(getNewPlayerObj.position)
+                await common_helper.commonQuery(RoomPlayer, "findOneAndUpdate", { player_data: getNewPlayerObj.playerObject._id, room_name: roomName }, { $set: { current_playing: false } })
+                newPlayerJoinObj.splice(newPlayerJoinObj.indexOf(getNewPlayerObj), 1)
+                deleteRoom()
+            } else {
+                console.log('shittttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttt')
+                const playerObject = _.find(playerObjList, (_player) => {
+                    return _player.getSocketId() == socket.id
+                })
+                if (playerObject) {
+                    playerObject.setPlayerReconnection(true)
+                   
+                    console.log("Get Player Reconnection");
+                    console.log(playerObject.getPlayerReconnection());
+                }
             }
-        }
-        
-        deleteRoom();
-    } catch (err) {
-        console.error('Error in disconnect handler:', err);
-    }
-});
+        })
     }
     this.getAllPlayersObject = () => {
         return playerObjList
@@ -3174,62 +3144,85 @@ socket.on("disconnect", async (reason) => {
     // }
 
     //Timer
-    const handlePlayerTimeout = () => {
-    const playerObject = getMyPlayer(activePlayer.getPlayerId());
-    if (!playerObject) return;
+    const startTimer = () => {
+        let isGameEnd = false
+        console.log("-- Start Timer --")
+        stopTimer()
+        turnInterval = setInterval(() => {
+            // time--
+            time -= 0.15
+            // console.log("-- Player Turn Time -->" + time)
+            if (time < 0) {
+                if (getActivePlayersObject().length != 0) {
+                    stopTimer()
+                    if (activePlayer) {
 
-    playerObject.setPlayerTimeOut(true);
-    playerObject.setTimeOutCounter(playerObject.getTimeOutCounter() + 1);
-    
-    if (playerObject.getTimeOutCounter() >= 2) {
-        if (playerObject.getPlayerReconnection()) {
-            playerDisconnectInGamePlay("defaultDisconnect", playerObject, playerObject.getSocketId());
-        } else {
-            io.to(playerObject.getSocketId()).emit("autoLeftPlayer", JSON.stringify({ status: true }));
-        }
-    }
+                        let playerObject = getMyPlayer(activePlayer.getPlayerId())
 
-    if (!playerObject.getIsSideShowSelected()) {
-        io.in(roomName).emit("playerRunningStatus", 
-            JSON.stringify({ playerId: activePlayer.getPlayerId(), playerStatus: "Time Out", lastBetAmount: 0 }));
-        playerObject.setIsActive(false);
-        
-        if (getActivePlayersObject().length === 1) {
-            handleLastPlayerStanding();
-        }
-    }
-};
- const startTimer = () => {
-    stopTimer(); // Always stop existing timer first
-    
-    let isGameEnd = false;
-    turnInterval = setInterval(() => {
-        time -= 0.15;
-        
-        if (time < 0) {
-            stopTimer();
-            if (getActivePlayersObject().length !== 0 && activePlayer) {
-                handlePlayerTimeout();
+                        if (playerObject) {
+                            console.log("------------------------ Time Out ------------------------");
+                            playerObject.setPlayerTimeOut(true)
+                            playerObject.setTimeOutCounter(playerObject.getTimeOutCounter() + 1)
+                            console.log("playerObject.getTimeOutCounter()===============================");
+                            console.log(playerObject.getTimeOutCounter());
+                            console.log("playerObject.getTimeOutCounter()===============================");
+                            if (playerObject.getTimeOutCounter() == 2) {
+                                if (!playerObject.getPlayerReconnection()) {
+                                    io.to(playerObject.getSocketId()).emit("autoLeftPlayer", JSON.stringify({ status: true }))
+                                    console.log("No Reconnection");
+                                } else {
+                                    console.log("------------------------ Reconnection ------------------------");
+                                    playerDisconnectInGamePlay("defaultDisconnect", playerObject, playerObject.getSocketId())
+                                }
+                            }
+
+                            if (!playerObject.getIsSideShowSelected()) {
+                                io.in(roomName).emit("playerRunningStatus", JSON.stringify({ playerId: activePlayer.getPlayerId(), playerStatus: "Time Out", lastBetAmount: 0 }))
+                                if (playerObject) {
+                                    playerObject.setIsActive(false)
+                                }
+                                if (getActivePlayersObject().length == 1) {
+                                    const getLastActivePlayer = _.find(getActivePlayersObject(), (_player) => {
+                                        return _player.getIsActive() == true;
+                                    })
+                                    if (getLastActivePlayer) {
+                                        isGameEnd = true
+                                        let winPlayerId = getLastActivePlayer.getPlayerId()
+                                        let getTotalWinAmount = tableAmount - getLastActivePlayer.getLoseChips()
+                                        tableAmount = tableAmount - calculateWinAmount(getTotalWinAmount)
+                                        getLastActivePlayer.setWinChips(getTotalWinAmount - calculateWinAmount(getTotalWinAmount))
+                                        getLastActivePlayer.setPlayerAmount(getLastActivePlayer.getPlayerAmount() + tableAmount)
+                                        getLastActivePlayer.setWinPlayHand(getLastActivePlayer.getWinPlayHand() + 1)
+                                        setWinnerWinAmount(winPlayerId, roomName, gameRound, getTotalWinAmount, getLastActivePlayer.getPlayerAmount())
+                                        setAllPlayerLoseAmount(winPlayerId)
+                                        io.in(roomName).emit("playerRunningStatus", JSON.stringify({ playerId: playerObject.getPlayerId(), playerStatus: "Packed", lastBetAmount: 0 }));
+                                        io.in(roomName).emit("packWinner", JSON.stringify({ playerId: getLastActivePlayer.getPlayerId(), status: true, message: common_message.ALL_PACK_WIN }));
+                                        gameRestart()
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if (!isGameEnd) {
+                        sendOption()
+                    }
+                } else {
+                    clearInterval(turnInterval)
+                    // console.log("- All Player Delete -", getActivePlayersObject().length);
+                }
             }
-            if (!isGameEnd) {
-                sendOption();
+            if (!isGameEnd && activePlayer) {
+                io.in(roomName).emit("playerTurnTimer", JSON.stringify({ defaultTime, time, activePlayer: activePlayer.getPlayerId() }))
             }
-        }
-        
-        if (!isGameEnd && activePlayer) {
-            io.in(roomName).emit("playerTurnTimer", 
-                JSON.stringify({ defaultTime, time, activePlayer: activePlayer.getPlayerId() }));
-        }
-    }, 78);
-};
-   const stopTimer = () => {
-    if (turnInterval) {
-        clearInterval(turnInterval);
-        turnInterval = null;
+            // }, 1000)
+        }, 78)
     }
-    time = defaultTime;
-};
-
+    const stopTimer = () => {
+        console.log("Stop Timer");
+        // console.log('playerObjList----=-=-=-=-=-=-=-=-==--=-=-=-=-=-=-=>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>', playerObjList.length);
+        clearInterval(turnInterval)
+        time = defaultTime
+    }
     this.turnTimerClearInterval = () => {
         clearInterval(turnInterval)
     }
