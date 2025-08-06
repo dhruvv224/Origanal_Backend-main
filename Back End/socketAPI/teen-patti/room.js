@@ -2883,6 +2883,7 @@ const Room = function (io, AllInOne) {
         if (isBotPlayer(activePlayer)) {
             console.log("Current Active Player is a Bot, triggering auto play");
             botAutoPlayIfNeeded();
+            stopTimer();
         }
 
         let index = playerObjList.findIndex(
