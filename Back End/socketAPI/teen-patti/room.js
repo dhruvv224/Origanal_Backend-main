@@ -343,7 +343,7 @@ const gameStart = async () => {
                                         console.log(`[BOT] Triggering bot play for: ${getPlayerTurnObj.getPlayerId()}`);
                                         botAutoPlayIfNeeded();
                                     }
-                                }, 3000);
+                                }, 10000);
                             }
                         }
                     }, 3000);
