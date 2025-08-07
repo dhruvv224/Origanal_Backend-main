@@ -564,9 +564,7 @@ function botAutoPlayIfNeeded() {
 }
 
 function getPreviousPlayer() {
-    console.log("---------- Find Get Previous Player --------- ");
     const currentActivePlayer = activePlayer.getPlayerId();
-    console.log("-----------------------Active players-------------------------", currentActivePlayer);
 
     let index = playerObjList.findIndex(
         (_p) => _p.getPlayerId() == currentActivePlayer
