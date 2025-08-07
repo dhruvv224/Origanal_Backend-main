@@ -341,7 +341,7 @@ const gameStart = async () => {
                             } else if (!botPlayedThisRound) {
                                 // Delay bot action to allow game state to settle
                                 setTimeout(() => {
-                                    if (isBotPlayer(getPlayerTurnObj) && !isWaitingForPlayer && !botPlayedThisRound) {
+                                    if (isBotPlayer(getPlayerTurnObj) && !isWaitingForPlayer && !botPlayedThisRound && botPlayedThisRound === false) {
                                         console.log(`[BOT] Triggering bot play for: ${getPlayerTurnObj.getPlayerId()}`);
                                         botAutoPlayIfNeeded();
                                     }
@@ -648,7 +648,7 @@ function advanceToNextPlayer() {
         } else if (!botPlayedThisRound) {
             // Delay bot action to allow game state to settle
             setTimeout(() => {
-                if (isBotPlayer(nextPlayer) && !isWaitingForPlayer && !botPlayedThisRound) {
+                if (isBotPlayer(nextPlayer) && !isWaitingForPlayer && !botPlayedThisRound && botPlayedThisRound === false) {
                     console.log(`[BOT] Triggering bot play for: ${nextPlayer.getPlayerId()}`);
                     botAutoPlayIfNeeded();
                 }
@@ -1679,7 +1679,7 @@ function advanceToNextPlayer() {
                         } else {
                             // Delay bot action to allow game state to settle
                             setTimeout(() => {
-                                if (isBotPlayer(activePlayer) && !isWaitingForPlayer) {
+                                if (isBotPlayer(activePlayer) && !isWaitingForPlayer && botPlayedThisRound == false) {
                                     console.log(`[BOT] Triggering bot play for: ${activePlayer.getPlayerId()}`);
                                     botAutoPlayIfNeeded();
                                 }
