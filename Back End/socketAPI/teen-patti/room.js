@@ -1037,6 +1037,7 @@ function advanceToNextPlayer() {
                         botsSpawned = true;
                         const humanPlayers = playerObjList.filter(p => !isBotPlayer(p));
                         if (humanPlayers.length === 1) {
+                            console.log("[BOT] Adding bot player due to single human player when connect player.");
                             await addBotPlayer(io, roomName, tableValueLimit, playerObjList, playerSitting, newPlayerJoinObj, roomIsFull);
                         }
                     }
@@ -3188,6 +3189,7 @@ function advanceToNextPlayer() {
             // If only one human player is left in the room, add a bot
             const humanPlayers = playerObjList.filter(p => !isBotPlayer(p));
             if (humanPlayers.length === 1 && playerObjList.length === 1) {
+                console.log("Adding Bot Player due to only one human player left when onePlayerStartTimer is called");
                 addBotPlayer(io, roomName, tableValueLimit, playerObjList, playerSitting, newPlayerJoinObj, roomIsFull);
             }
             if (playerObjList.length > 1 || playerObjList.length == 0) {
