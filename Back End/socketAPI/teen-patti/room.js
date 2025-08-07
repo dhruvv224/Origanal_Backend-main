@@ -272,7 +272,7 @@ const gameStart = async () => {
     isGameRunning = true;
     variationGameStart = false;
     onlyOnePlayerLeft = false;
-    botPlayedThisRound = false; // Reset bot play flag for new round
+    botPlayedThisRound = false;
     let realPlayerActed = false; // Track if a real player has acted
 
     await common_helper.commonQuery(Room, "findOneAndUpdate", { room_name: roomName }, { $inc: { game_start_counter: 1 } });
@@ -337,22 +337,26 @@ const gameStart = async () => {
                     setTimeout(() => {
                         if (!onlyOnePlayerLeft && playerObjList.length > 1) {
                             isWaitingForPlayer = !isBotPlayer(getPlayerTurnObj);
+                            // Check if there are any real players
+                            const hasRealPlayers = playerObjList.some(player => !isBotPlayer(player));
                             if (!isBotPlayer(getPlayerTurnObj)) {
+                                realPlayerActed = true; // Real player gets turn
                                 sendPlayerOption(getPlayerTurnObj.getSocketId(), getPlayerTurnObj.getIsCardSeen());
                                 console.log("Start Timer for first player");
                                 startTimer();
+                            } else if (hasRealPlayers) {
+                                // If first player is a bot but real players exist, wait for a real player
+                                isWaitingForPlayer = true;
+                                console.log("Waiting for real player to act before bot plays");
+                                startTimer(); // Start timer to allow real players to act
                             } else {
-                                const dealer = getDealer.getPlayerId();
-                                // Allow bot to play if it's the first turn (e.g., dealer or first player) or if a real player has acted
-                                console.log("check in vampsy code",isBotPlayer(dealer),'haha',isBotPlayer(getDealer) ,"||", realPlayerActed,"check haha",isBotPlayer(getPlayerTurnObj));
-                                if (!botPlayedThisRound && (isBotPlayer(getPlayerTurnObj) || realPlayerActed)) {
-                                    setTimeout(() => {
-                                        if (isBotPlayer(getPlayerTurnObj) && !isWaitingForPlayer && !botPlayedThisRound) {
-                                            console.log(`[BOT] Triggering bot play for: ${getPlayerTurnObj.getPlayerId()}`);
-                                            botAutoPlayIfNeeded();
-                                        }
-                                    }, 1000);
-                                }
+                                // No real players, allow bot to play immediately
+                                setTimeout(() => {
+                                    if (isBotPlayer(getPlayerTurnObj) && !isWaitingForPlayer && !botPlayedThisRound) {
+                                        console.log(`[BOT] Triggering bot play for: ${getPlayerTurnObj.getPlayerId()}`);
+                                        botAutoPlayIfNeeded();
+                                    }
+                                }, 1000);
                             }
                         }
                     }, 1000);
@@ -368,6 +372,7 @@ const gameStart = async () => {
 function botAutoPlayIfNeeded() {
     try {
         // Check if conditions for bot to play are met
+        const hasRealPlayers = playerObjList.some(player => !isBotPlayer(player));
         if (
             typeof activePlayer === "undefined" ||
             !activePlayer ||
@@ -378,7 +383,8 @@ function botAutoPlayIfNeeded() {
             !isGameStarted ||
             !isGameRunning ||
             isWaitingForPlayer ||
-            botPlayedThisRound // Prevent bot from playing multiple times in same round
+            botPlayedThisRound ||
+            (hasRealPlayers && !realPlayerActed) // Prevent bot from playing if real players exist and haven't acted
         ) {
             console.log('[BOT] Bot cannot play: Conditions not met.', {
                 activePlayerExists: !!activePlayer,
@@ -386,7 +392,9 @@ function botAutoPlayIfNeeded() {
                 gameStarted: typeof isGameStarted !== "undefined" ? isGameStarted : false,
                 gameRunning: typeof isGameRunning !== "undefined" ? isGameRunning : false,
                 isWaitingForPlayer,
-                botPlayedThisRound
+                botPlayedThisRound,
+                hasRealPlayers,
+                realPlayerActed
             });
             return;
         }
@@ -632,6 +640,7 @@ function advanceToNextPlayer() {
         activePlayer = nextPlayer;
         botPlayedThisRound = false; // Reset bot play flag for new player turn
         isWaitingForPlayer = !isBotPlayer(nextPlayer); // Set flag if next player is real
+        const hasRealPlayers = playerObjList.some(player => !isBotPlayer(player));
         if (typeof io !== "undefined" && io && typeof roomName !== "undefined") {
             io.in(roomName).emit("playerTurn", {
                 playerId: nextPlayer.getPlayerId(),
@@ -641,12 +650,13 @@ function advanceToNextPlayer() {
         // Stop timer to pause game for all players
         console.log(`[GAME] Stopping timer for player turn: ${nextPlayer.getPlayerId()}`);
         stopTimer();
-        // Start timer only for real players
+        // Start timer only for real players or if no real players remain
         if (!isBotPlayer(nextPlayer)) {
+            realPlayerActed = true; // Real player gets turn
             console.log(`[GAME] Starting timer for real player: ${nextPlayer.getPlayerId()}`);
             sendPlayerOption(nextPlayer.getSocketId(), nextPlayer.getIsCardSeen());
             startTimer();
-        } else if (!botPlayedThisRound) {
+        } else if (!hasRealPlayers || realPlayerActed) {
             // Delay bot action to allow game state to settle
             setTimeout(() => {
                 if (isBotPlayer(nextPlayer) && !isWaitingForPlayer && !botPlayedThisRound) {
@@ -654,12 +664,16 @@ function advanceToNextPlayer() {
                     botAutoPlayIfNeeded();
                 }
             }, 1000);
+        } else {
+            // If real players exist and haven't acted, wait
+            console.log("Waiting for real player to act before bot plays");
+            isWaitingForPlayer = true;
+            startTimer(); // Start timer to allow real players to act
         }
     } else {
         console.log('[GAME] Error: No valid next player found.');
     }
 }
-
 // ...existing code...
 
     // Patch: Expose a function to simulate playRound for bots (call the same logic as socket.on("playRound"))
@@ -1489,7 +1503,7 @@ function advanceToNextPlayer() {
             }
             socket.emit("getPlayerDetails", JSON.stringify(myPlayerObj));
         });
-  socket.on("playRound", (playerData) => {
+socket.on("playRound", (playerData) => {
     let { playerId, playerOption, amount, isBot } = JSON.parse(playerData);
     console.log("---------------- Play Round ---------------", JSON.parse(playerData));
 
@@ -1498,8 +1512,11 @@ function advanceToNextPlayer() {
     let isShow = false;
     let isSideShow = false;
 
-    // Reset waiting flag when a player acts
-    isWaitingForPlayer = false;
+    // Reset waiting flag and mark real player action
+    if (!isBot) {
+        realPlayerActed = true; // Real player has acted
+        isWaitingForPlayer = false;
+    }
 
     if (isBot) {
         console.log(`[BOT] Bot action for playerId: ${playerId}, option: ${playerOption}, amount: ${amount}`);
@@ -1682,7 +1699,7 @@ function advanceToNextPlayer() {
                         } else {
                             // Delay bot action to allow game state to settle
                             setTimeout(() => {
-                                if (isBotPlayer(activePlayer) && !isWaitingForPlayer && botPlayedThisRound == false) {
+                                if (isBotPlayer(activePlayer) && !isWaitingForPlayer && botPlayedThisRound == false && (realPlayerActed || !playerObjList.some(player => !isBotPlayer(player)))) {
                                     console.log(`[BOT] Triggering bot play for: ${activePlayer.getPlayerId()}`);
                                     botAutoPlayIfNeeded();
                                 }
