@@ -1032,15 +1032,15 @@ function advanceToNextPlayer() {
                         roomIsFull = true;
                     }
 
-                    // Add bot immediately if only one player and not already spawned
-                    if (!botsSpawned && playerObjList.length === 1 && !roomIsFull) {
-                        botsSpawned = true;
-                        const humanPlayers = playerObjList.filter(p => !isBotPlayer(p));
-                        if (humanPlayers.length === 1) {
-                            console.log("[BOT] Adding bot player due to single human player when connect player.");
-                            await addBotPlayer(io, roomName, tableValueLimit, playerObjList, playerSitting, newPlayerJoinObj, roomIsFull);
-                        }
-                    }
+                    // // Add bot immediately if only one player and not already spawned
+                    // if (!botsSpawned && playerObjList.length === 1 && !roomIsFull) {
+                    //     botsSpawned = true;
+                    //     const humanPlayers = playerObjList.filter(p => !isBotPlayer(p));
+                    //     if (humanPlayers.length === 1) {
+                    //         console.log("[BOT] Adding bot player due to single human player when connect player.");
+                    //         await addBotPlayer(io, roomName, tableValueLimit, playerObjList, playerSitting, newPlayerJoinObj, roomIsFull);
+                    //     }
+                    // }
 
                     // Auto Game Start
                     if (playerObjList.length > 1 && !isGameStarted) {
