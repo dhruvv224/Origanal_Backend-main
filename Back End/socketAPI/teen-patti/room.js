@@ -3194,6 +3194,7 @@ function advanceToNextPlayer() {
             }
             if (playerObjList.length > 1 || playerObjList.length == 0) {
                 onePlayerStopTimer()
+                gameStart()
             }
             if (onePlayerTime < 0) {
                 onePlayerStopTimer()
