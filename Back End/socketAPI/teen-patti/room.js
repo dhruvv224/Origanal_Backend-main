@@ -3311,29 +3311,79 @@ socket.on("playRound", (playerData) => {
     // }
 
     //Timer
-   function startTimer() {
-    console.log("Starting timer for player turn");
-    const timeoutDuration = 30000; // 30 seconds
-    setTimeout(() => {
-        if (isWaitingForPlayer && !realPlayerActed) {
-            console.log("Timer expired, allowing bot to play or advancing");
-            realPlayerActed = true; // Allow bots to proceed
-            isWaitingForPlayer = false;
-            if (isBotPlayer(activePlayer) && !botPlayedThisRound) {
-                const isDealer = activePlayer.getDealerPosition && activePlayer.getDealerPosition() === 1;
-                if (isDealer) {
-                    console.log(`[BOT] Dealer ${activePlayer.getPlayerId()} timed out, triggering action`);
-                    botAutoPlayIfNeeded(); // Ensure dealer acts
+ const startTimer = () => {
+        let isGameEnd = false
+        console.log("-- Start Timer --")
+        stopTimer()
+        turnInterval = setInterval(() => {
+            // time--
+            time -= 0.15
+            // console.log("-- Player Turn Time -->" + time)
+            if (time < 0) {
+                if (getActivePlayersObject().length != 0) {
+                    stopTimer()
+                    if (activePlayer) {
+
+                        let playerObject = getMyPlayer(activePlayer.getPlayerId())
+
+                        if (playerObject) {
+                            console.log("------------------------ Time Out ------------------------");
+                            playerObject.setPlayerTimeOut(true)
+                            playerObject.setTimeOutCounter(playerObject.getTimeOutCounter() + 1)
+                            console.log("playerObject.getTimeOutCounter()===============================");
+                            console.log(playerObject.getTimeOutCounter());
+                            console.log("playerObject.getTimeOutCounter()===============================");
+                            if (playerObject.getTimeOutCounter() == 2) {
+                                if (!playerObject.getPlayerReconnection()) {
+                                    io.to(playerObject.getSocketId()).emit("autoLeftPlayer", JSON.stringify({ status: true }))
+                                    console.log("No Reconnection");
+                                } else {
+                                    console.log("------------------------ Reconnection ------------------------");
+                                    playerDisconnectInGamePlay("defaultDisconnect", playerObject, playerObject.getSocketId())
+                                }
+                            }
+
+                            if (!playerObject.getIsSideShowSelected()) {
+                                io.in(roomName).emit("playerRunningStatus", JSON.stringify({ playerId: activePlayer.getPlayerId(), playerStatus: "Time Out", lastBetAmount: 0 }))
+                                if (playerObject) {
+                                    playerObject.setIsActive(false)
+                                }
+                                if (getActivePlayersObject().length == 1) {
+                                    const getLastActivePlayer = _.find(getActivePlayersObject(), (_player) => {
+                                        return _player.getIsActive() == true;
+                                    })
+                                    if (getLastActivePlayer) {
+                                        isGameEnd = true
+                                        let winPlayerId = getLastActivePlayer.getPlayerId()
+                                        let getTotalWinAmount = tableAmount - getLastActivePlayer.getLoseChips()
+                                        tableAmount = tableAmount - calculateWinAmount(getTotalWinAmount)
+                                        getLastActivePlayer.setWinChips(getTotalWinAmount - calculateWinAmount(getTotalWinAmount))
+                                        getLastActivePlayer.setPlayerAmount(getLastActivePlayer.getPlayerAmount() + tableAmount)
+                                        getLastActivePlayer.setWinPlayHand(getLastActivePlayer.getWinPlayHand() + 1)
+                                        setWinnerWinAmount(winPlayerId, roomName, gameRound, getTotalWinAmount, getLastActivePlayer.getPlayerAmount())
+                                        setAllPlayerLoseAmount(winPlayerId)
+                                        io.in(roomName).emit("playerRunningStatus", JSON.stringify({ playerId: playerObject.getPlayerId(), playerStatus: "Packed", lastBetAmount: 0 }));
+                                        io.in(roomName).emit("packWinner", JSON.stringify({ playerId: getLastActivePlayer.getPlayerId(), status: true, message: common_message.ALL_PACK_WIN }));
+                                        gameRestart()
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if (!isGameEnd) {
+                        sendOption()
+                    }
                 } else {
-                    console.log(`[BOT] Triggering bot play for: ${activePlayer.getPlayerId()} due to timeout`);
-                    botAutoPlayIfNeeded();
+                    clearInterval(turnInterval)
+                    // console.log("- All Player Delete -", getActivePlayersObject().length);
                 }
-            } else {
-                advanceToNextPlayer(); // Move to next player
             }
-        }
-    }, timeoutDuration);
-}
+            if (!isGameEnd && activePlayer) {
+                io.in(roomName).emit("playerTurnTimer", JSON.stringify({ defaultTime, time, activePlayer: activePlayer.getPlayerId() }))
+            }
+            // }, 1000)
+        }, 78)
+    }
     const stopTimer = () => {
         console.log("Stop Timer");
         // console.log('playerObjList----=-=-=-=-=-=-=-=-==--=-=-=-=-=-=-=>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>', playerObjList.length);
