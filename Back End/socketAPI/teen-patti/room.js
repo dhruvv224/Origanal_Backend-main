@@ -343,6 +343,7 @@ const gameStart = async () => {
                                 startTimer();
                             } else {
                                 // Allow bot to play if it's the first turn (e.g., dealer or first player) or if a real player has acted
+                                console.log("check in vampsy code",(isBotPlayer(getDealer) ,"||", realPlayerActed));
                                 if (!botPlayedThisRound && (isBotPlayer(getDealer) || realPlayerActed)) {
                                     setTimeout(() => {
                                         if (isBotPlayer(getPlayerTurnObj) && !isWaitingForPlayer && !botPlayedThisRound) {
