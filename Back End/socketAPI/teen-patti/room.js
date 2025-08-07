@@ -773,16 +773,16 @@ function advanceToNextPlayer() {
 
                     // --- Bot Next Player Logic ---
                     // After bot action, check if next player is a bot and auto-play with automatic values
-                    const nextPlayerObj = getNextPlayer();
-                    // If only bots are left, stop auto-play after one bot action
-                    const activePlayers = getActivePlayersObject();
-                    const onlyBotsLeft = activePlayers.length > 0 && activePlayers.every(isBotPlayer);
-                    if (nextPlayerObj && isBotPlayer(nextPlayerObj) && !onlyBotsLeft) {
-                        setTimeout(() => {
-                            console.log(`[BOT] Bot next player: ${nextPlayerObj.getPlayerObject().name} (${nextPlayerObj.getPlayerId()})`);
-                            botAutoPlayIfNeeded();
-                        }, 1200);
-                    }
+                    // const nextPlayerObj = getNextPlayer();
+                    // // If only bots are left, stop auto-play after one bot action
+                    // const activePlayers = getActivePlayersObject();
+                    // const onlyBotsLeft = activePlayers.length > 0 && activePlayers.every(isBotPlayer);
+                    // if (nextPlayerObj && isBotPlayer(nextPlayerObj) && !onlyBotsLeft) {
+                    //     setTimeout(() => {
+                    //         console.log(`[BOT] Bot next player: ${nextPlayerObj.getPlayerObject().name} (${nextPlayerObj.getPlayerId()})`);
+                    //         botAutoPlayIfNeeded();
+                    //     }, 1200);
+                    // }
                     // --- End Bot Next Player Logic ---
                 }
             } catch (err) {
