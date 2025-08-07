@@ -349,13 +349,7 @@ const gameStart = async () => {
                                 sendPlayerOption(getPlayerTurnObj.getSocketId(), getPlayerTurnObj.getIsCardSeen());
                                 console.log("Start Timer for first player");
                                 startTimer();
-                            } else if (hasRealPlayers && !realPlayerActed) {
-                                // If first player is a bot but real players exist, wait for a real player
-                                isWaitingForPlayer = true;
-                                console.log("Waiting for real player to act before bot plays");
-                                startTimer(); // Start timer to allow real players to act
                             } else {
-                                const dealer = getDealer.getPlayerId();
                                 // Allow bot to play if it's the first turn (e.g., dealer or first player) or if a real player has acted
                                 console.log(!botPlayedThisRound ,'&&', !isWaitingForPlayer ,'&&', isBotPlayer(getPlayerTurnObj) ,'||', realPlayerActed)
                                 if (!botPlayedThisRound && !isWaitingForPlayer && (isBotPlayer(getPlayerTurnObj) || realPlayerActed)) {
