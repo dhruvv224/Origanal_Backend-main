@@ -344,8 +344,8 @@ const gameStart = async () => {
                             } else {
                                 const dealer = getDealer.getPlayerId();
                                 // Allow bot to play if it's the first turn (e.g., dealer or first player) or if a real player has acted
-                                console.log("check in vampsy code",isBotPlayer(dealer),'haha',isBotPlayer(getDealer) ,"||", realPlayerActed, getDealer);
-                                if (!botPlayedThisRound && (isBotPlayer(getDealer) || realPlayerActed)) {
+                                console.log("check in vampsy code",isBotPlayer(dealer),'haha',isBotPlayer(getDealer) ,"||", realPlayerActed,"check haha",isBotPlayer(getPlayerTurnObj));
+                                if (!botPlayedThisRound && (isBotPlayer(getPlayerTurnObj) || realPlayerActed)) {
                                     setTimeout(() => {
                                         if (isBotPlayer(getPlayerTurnObj) && !isWaitingForPlayer && !botPlayedThisRound) {
                                             console.log(`[BOT] Triggering bot play for: ${getPlayerTurnObj.getPlayerId()}`);
