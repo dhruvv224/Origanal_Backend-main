@@ -627,37 +627,37 @@ function advanceToNextPlayer() {
     }
 
     const nextPlayer = playerObjList[index];
-    // if (nextPlayer) {
-    //     console.log(`[GAME] Advancing to player: ${nextPlayer.getPlayerObject().name} (${nextPlayer.getPlayerId()})`);
-    //     activePlayer = nextPlayer;
-    //     botPlayedThisRound = false; // Reset bot play flag for new player turn
-    //     isWaitingForPlayer = !isBotPlayer(nextPlayer); // Set flag if next player is real
-    //     if (typeof io !== "undefined" && io && typeof roomName !== "undefined") {
-    //         io.in(roomName).emit("playerTurn", {
-    //             playerId: nextPlayer.getPlayerId(),
-    //             playerName: nextPlayer.getPlayerObject().name
-    //         });
-    //     }
-    //     // Stop timer to pause game for all players
-    //     console.log(`[GAME] Stopping timer for player turn: ${nextPlayer.getPlayerId()}`);
-    //     stopTimer();
-    //     // Start timer only for real players
-    //     if (!isBotPlayer(nextPlayer)) {
-    //         console.log(`[GAME] Starting timer for real player: ${nextPlayer.getPlayerId()}`);
-    //         sendPlayerOption(nextPlayer.getSocketId(), nextPlayer.getIsCardSeen());
-    //         startTimer();
-    //     } else if (!botPlayedThisRound) {
-    //         // Delay bot action to allow game state to settle
-    //         setTimeout(() => {
-    //             if (isBotPlayer(nextPlayer) && !isWaitingForPlayer && !botPlayedThisRound && botPlayedThisRound === false) {
-    //                 console.log(`[BOT] Triggering bot play for: ${nextPlayer.getPlayerId()}`);
-    //                 botAutoPlayIfNeeded();
-    //             }
-    //         }, 1000);
-    //     }
-    // } else {
-    //     console.log('[GAME] Error: No valid next player found.');
-    // }
+    if (nextPlayer) {
+        console.log(`[GAME] Advancing to player: ${nextPlayer.getPlayerObject().name} (${nextPlayer.getPlayerId()})`);
+        activePlayer = nextPlayer;
+        botPlayedThisRound = false; // Reset bot play flag for new player turn
+        isWaitingForPlayer = !isBotPlayer(nextPlayer); // Set flag if next player is real
+        if (typeof io !== "undefined" && io && typeof roomName !== "undefined") {
+            io.in(roomName).emit("playerTurn", {
+                playerId: nextPlayer.getPlayerId(),
+                playerName: nextPlayer.getPlayerObject().name
+            });
+        }
+        // Stop timer to pause game for all players
+        console.log(`[GAME] Stopping timer for player turn: ${nextPlayer.getPlayerId()}`);
+        stopTimer();
+        // Start timer only for real players
+        if (!isBotPlayer(nextPlayer)) {
+            console.log(`[GAME] Starting timer for real player: ${nextPlayer.getPlayerId()}`);
+            sendPlayerOption(nextPlayer.getSocketId(), nextPlayer.getIsCardSeen());
+            startTimer();
+        } else if (!botPlayedThisRound) {
+            // Delay bot action to allow game state to settle
+            setTimeout(() => {
+                if (isBotPlayer(nextPlayer) && !isWaitingForPlayer && !botPlayedThisRound) {
+                    console.log(`[BOT] Triggering bot play for: ${nextPlayer.getPlayerId()}`);
+                    botAutoPlayIfNeeded();
+                }
+            }, 1000);
+        }
+    } else {
+        console.log('[GAME] Error: No valid next player found.');
+    }
 }
 
 // ...existing code...
