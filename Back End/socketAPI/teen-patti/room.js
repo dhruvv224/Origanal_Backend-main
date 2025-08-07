@@ -474,120 +474,120 @@ const makeBotPlay = () => {
         "Karan", "Anjali", "Manish", "Ritu", "Suresh", "Meena", "Deepak", "Nisha", "Vivek", "Shweta"
     ];
 
-    // async function addBotPlayer(io, roomName, tableValueLimit, playerObjList, playerSitting, newPlayerJoinObj, roomIsFull) {
-    //     console.log('[BOT] Checking if bot can be added...', roomName);
-    //     if (roomIsFull || playerObjList.length + newPlayerJoinObj.length >= 5) {
-    //         console.log('[BOT] Room is full, cannot add bot.');
-    //         return;
-    //     }
-    //     if (countBots(playerObjList) >= 2) {
-    //         console.log('[BOT] Already 2 bots present.');
-    //         return;
-    //     }
+    async function addBotPlayer(io, roomName, tableValueLimit, playerObjList, playerSitting, newPlayerJoinObj, roomIsFull) {
+        console.log('[BOT] Checking if bot can be added...', roomName);
+        if (roomIsFull || playerObjList.length + newPlayerJoinObj.length >= 5) {
+            console.log('[BOT] Room is full, cannot add bot.');
+            return;
+        }
+        if (countBots(playerObjList) >= 2) {
+            console.log('[BOT] Already 2 bots present.');
+            return;
+        }
 
-    //     const emptyPosition = _.find(playerSitting, (_position) => _position.isPlayerSitting === false);
-    //     if (!emptyPosition) {
-    //         console.log('[BOT] No empty position for bot.');
-    //         return;
-    //     }
+        const emptyPosition = _.find(playerSitting, (_position) => _position.isPlayerSitting === false);
+        if (!emptyPosition) {
+            console.log('[BOT] No empty position for bot.');
+            return;
+        }
 
-    //     let botPlayerData = getAvailableStaticBotPlayer(playerObjList);
-    //     let botId, botName, botChips, botAvatar, botProfilePic, botIsStatic = false;
-    //     if (botPlayerData) {
-    //         botId = botPlayerData.player_id || botPlayerData.email || ('BOT_' + Date.now());
-    //         botName = botPlayerData.name || BOT_NAMES[Math.floor(Math.random() * BOT_NAMES.length)];
-    //         botChips = botPlayerData.chips || (tableValueLimit.boot_value * 10);
-    //         botAvatar = botPlayerData.avatar_id || 1;
-    //         botProfilePic = botPlayerData.profile_pic || '';
-    //         botIsStatic = true;
-    //     } else {
-    //         botId = 'BOT_' + Date.now();
-    //         botName = BOT_NAMES[Math.floor(Math.random() * BOT_NAMES.length)];
-    //         botChips = tableValueLimit.boot_value * 10;
-    //         botAvatar = 1;
-    //         botProfilePic = '';
-    //     }
+        let botPlayerData = getAvailableStaticBotPlayer(playerObjList);
+        let botId, botName, botChips, botAvatar, botProfilePic, botIsStatic = false;
+        if (botPlayerData) {
+            botId = botPlayerData.player_id || botPlayerData.email || ('BOT_' + Date.now());
+            botName = botPlayerData.name || BOT_NAMES[Math.floor(Math.random() * BOT_NAMES.length)];
+            botChips = botPlayerData.chips || (tableValueLimit.boot_value * 10);
+            botAvatar = botPlayerData.avatar_id || 1;
+            botProfilePic = botPlayerData.profile_pic || '';
+            botIsStatic = true;
+        } else {
+            botId = 'BOT_' + Date.now();
+            botName = BOT_NAMES[Math.floor(Math.random() * BOT_NAMES.length)];
+            botChips = tableValueLimit.boot_value * 10;
+            botAvatar = 1;
+            botProfilePic = '';
+        }
 
-    //     // Save bot to Players table if not exists
-    //     let botPlayerDoc = await Players.findOne({ player_id: botId });
-    //     if (!botPlayerDoc) {
-    //         botPlayerDoc = await Players.create({
-    //             player_id: botId,
-    //             name: botName,
-    //             chips: botChips,
-    //             avatar_id: botAvatar,
-    //             profile_pic: botProfilePic,
-    //             isBot: true
-    //         });
-    //     }
+        // Save bot to Players table if not exists
+        let botPlayerDoc = await Players.findOne({ player_id: botId });
+        if (!botPlayerDoc) {
+            botPlayerDoc = await Players.create({
+                player_id: botId,
+                name: botName,
+                chips: botChips,
+                avatar_id: botAvatar,
+                profile_pic: botProfilePic,
+                isBot: true
+            });
+        }
 
-    //     const botPlayer = new Player(io);
-    //     botPlayer.setRoomName(roomName);
-    //     botPlayer.setPlayerId(botId);
-    //     botPlayer.setPlayerObjectId(botPlayerDoc._id);
-    //     botPlayer.setSocketId('BOT_SOCKET_' + Date.now());
-    //     botPlayer.setPlayerObject({
-    //         name: botName,
-    //         avatar_id: botAvatar,
-    //         profile_pic: botProfilePic,
-    //         chips: botChips,
-    //         _id: botPlayerDoc._id,
-    //         isBot: true
-    //     });
-    //     botPlayer.setDealerPosition(0);
-    //     botPlayer.setEnterAmount(botChips);
-    //     botPlayer.setPlayerAmount(botChips);
-    //     botPlayer.setPlayerPosition(emptyPosition.position);
-    //     botPlayer.setIsActive(true);
+        const botPlayer = new Player(io);
+        botPlayer.setRoomName(roomName);
+        botPlayer.setPlayerId(botId);
+        botPlayer.setPlayerObjectId(botPlayerDoc._id);
+        botPlayer.setSocketId('BOT_SOCKET_' + Date.now());
+        botPlayer.setPlayerObject({
+            name: botName,
+            avatar_id: botAvatar,
+            profile_pic: botProfilePic,
+            chips: botChips,
+            _id: botPlayerDoc._id,
+            isBot: true
+        });
+        botPlayer.setDealerPosition(0);
+        botPlayer.setEnterAmount(botChips);
+        botPlayer.setPlayerAmount(botChips);
+        botPlayer.setPlayerPosition(emptyPosition.position);
+        botPlayer.setIsActive(true);
 
-    //     emptyPosition.isPlayerSitting = true;
-    //     playerObjList.push(botPlayer);
+        emptyPosition.isPlayerSitting = true;
+        playerObjList.push(botPlayer);
 
-    //     console.log(`[BOT] Added bot: ${botName} (${botId}) at position ${emptyPosition.position}`);
+        console.log(`[BOT] Added bot: ${botName} (${botId}) at position ${emptyPosition.position}`);
 
-    //     io.in(roomName).emit("newPlayerJoin", JSON.stringify({
-    //         playerId: botPlayer.getPlayerId(),
-    //         dealerId: 0,
-    //         status: true,
-    //         tableAmount: 0
-    //     }));
-    //     console.log(`[BOT] Emitting playerSitting and playerList for bot: ${botName} (${botId})`);
-    //     io.in(roomName).emit("playerSitting", JSON.stringify({ playerSitting: playerSitting }));
-    //     io.in(roomName).emit("playerList", JSON.stringify({ playerList: playerObjList }));
-    //     io.in(roomName).emit("playerRunningStatus", JSON.stringify({
-    //         playerId: botPlayer.getPlayerId(),
-    //         playerStatus: "Joined",
-    //         lastBetAmount: 0
-    //     }));
-    //     io.in(roomName).emit("joinRoomData", JSON.stringify({ roomName: roomName, playerData: platerSittingInRoom(getAllPlayerData()) }));
-    //     io.in(roomName).emit("allActivePlayerData", JSON.stringify({ playerData: getAllPlayPlayer() }));
+        io.in(roomName).emit("newPlayerJoin", JSON.stringify({
+            playerId: botPlayer.getPlayerId(),
+            dealerId: 0,
+            status: true,
+            tableAmount: 0
+        }));
+        console.log(`[BOT] Emitting playerSitting and playerList for bot: ${botName} (${botId})`);
+        io.in(roomName).emit("playerSitting", JSON.stringify({ playerSitting: playerSitting }));
+        io.in(roomName).emit("playerList", JSON.stringify({ playerList: playerObjList }));
+        io.in(roomName).emit("playerRunningStatus", JSON.stringify({
+            playerId: botPlayer.getPlayerId(),
+            playerStatus: "Joined",
+            lastBetAmount: 0
+        }));
+        io.in(roomName).emit("joinRoomData", JSON.stringify({ roomName: roomName, playerData: platerSittingInRoom(getAllPlayerData()) }));
+        io.in(roomName).emit("allActivePlayerData", JSON.stringify({ playerData: getAllPlayPlayer() }));
 
-    //     // Save bot to RoomPlayer table
-    //     console.log(`[BOT] Saving bot to RoomPlayer table: ${botName} (${botId})`);
-    //     const enterRoomPlayer = {
-    //         player_data: botPlayerDoc._id,
-    //         room_name: roomName,
-    //         enter_chips: botPlayer.getEnterAmount(),
-    //         running_chips: botPlayer.getPlayerAmount()
-    //     };
-    //     common_helper.commonQuery(RoomPlayer, "create", enterRoomPlayer)
-    //         .then((result) => {
-    //             console.log(`[BOT] RoomPlayer create result:`, result);
-    //             if (result.status === 1) {
-    //                 common_helper.commonQuery(Room, "findOneAndUpdate", { room_name: roomName }, { $push: { room_players_data: result.data._id } })
-    //                     .then(() => {
-    //                         console.log(`[BOT] Bot added to Room: ${roomName}`);
-    //                     })
-    //                     .catch((err) => { console.log('[BOT] DB error:', err); });
-    //             }
-    //         })
-    //         .catch((err) => { console.log('[BOT] DB error:', err); });
+        // Save bot to RoomPlayer table
+        console.log(`[BOT] Saving bot to RoomPlayer table: ${botName} (${botId})`);
+        const enterRoomPlayer = {
+            player_data: botPlayerDoc._id,
+            room_name: roomName,
+            enter_chips: botPlayer.getEnterAmount(),
+            running_chips: botPlayer.getPlayerAmount()
+        };
+        common_helper.commonQuery(RoomPlayer, "create", enterRoomPlayer)
+            .then((result) => {
+                console.log(`[BOT] RoomPlayer create result:`, result);
+                if (result.status === 1) {
+                    common_helper.commonQuery(Room, "findOneAndUpdate", { room_name: roomName }, { $push: { room_players_data: result.data._id } })
+                        .then(() => {
+                            console.log(`[BOT] Bot added to Room: ${roomName}`);
+                        })
+                        .catch((err) => { console.log('[BOT] DB error:', err); });
+                }
+            })
+            .catch((err) => { console.log('[BOT] DB error:', err); });
 
-    //     if (playerObjList.length + newPlayerJoinObj.length >= 5) {
-    //         roomIsFull = true;
-    //         console.log('[BOT] Room is now full after adding bot.');
-    //     }
-    // }
+        if (playerObjList.length + newPlayerJoinObj.length >= 5) {
+            roomIsFull = true;
+            console.log('[BOT] Room is now full after adding bot.');
+        }
+    }
 
     // --- BOT LOGIC END ---
 
