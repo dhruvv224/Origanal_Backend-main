@@ -341,14 +341,16 @@ const gameStart = async () => {
                                 sendPlayerOption(getPlayerTurnObj.getSocketId(), getPlayerTurnObj.getIsCardSeen());
                                 console.log("Start Timer for first player");
                                 startTimer();
-                            } else if (!botPlayedThisRound && realPlayerActed) {
-                                // Only allow bot to play if a real player has acted
-                                setTimeout(() => {
-                                    if (isBotPlayer(getPlayerTurnObj) && !isWaitingForPlayer && !botPlayedThisRound) {
-                                        console.log(`[BOT] Triggering bot play for: ${getPlayerTurnObj.getPlayerId()}`);
-                                        botAutoPlayIfNeeded();
-                                    }
-                                }, 1000); // Reduced delay for smoother gameplay
+                            } else {
+                                // Allow bot to play if it's the first turn (e.g., dealer or first player) or if a real player has acted
+                                if (!botPlayedThisRound && (isBotPlayer(getDealer) || realPlayerActed)) {
+                                    setTimeout(() => {
+                                        if (isBotPlayer(getPlayerTurnObj) && !isWaitingForPlayer && !botPlayedThisRound) {
+                                            console.log(`[BOT] Triggering bot play for: ${getPlayerTurnObj.getPlayerId()}`);
+                                            botAutoPlayIfNeeded();
+                                        }
+                                    }, 1000);
+                                }
                             }
                         }
                     }, 1000);
