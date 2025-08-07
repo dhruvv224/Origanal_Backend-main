@@ -273,11 +273,14 @@ const gameStart = async () => {
     variationGameStart = false;
     onlyOnePlayerLeft = false;
     botPlayedThisRound = false; // Reset bot play flag for new round
+    let realPlayerActed = false; // Track if a real player has acted
+
     await common_helper.commonQuery(Room, "findOneAndUpdate", { room_name: roomName }, { $inc: { game_start_counter: 1 } });
     tableAmount = 0;
     callAndResetFlag();
     minimumBetAmount = tableValueLimit.boot_value;
     io.in(roomName).emit("gamePlayMessage", JSON.stringify({ message: common_message.NEW_ROUND }));
+
     setTimeout(() => {
         if (getActivePlayersObject().length > 1) {
             let getDealer;
@@ -338,17 +341,17 @@ const gameStart = async () => {
                                 sendPlayerOption(getPlayerTurnObj.getSocketId(), getPlayerTurnObj.getIsCardSeen());
                                 console.log("Start Timer for first player");
                                 startTimer();
-                            } else if (!botPlayedThisRound) {
-                                // Delay bot action to allow game state to settle
+                            } else if (!botPlayedThisRound && realPlayerActed) {
+                                // Only allow bot to play if a real player has acted
                                 setTimeout(() => {
-                                    if (isBotPlayer(getPlayerTurnObj) && !isWaitingForPlayer && !botPlayedThisRound && botPlayedThisRound === false) {
+                                    if (isBotPlayer(getPlayerTurnObj) && !isWaitingForPlayer && !botPlayedThisRound) {
                                         console.log(`[BOT] Triggering bot play for: ${getPlayerTurnObj.getPlayerId()}`);
                                         botAutoPlayIfNeeded();
                                     }
-                                }, 3000);
+                                }, 1000); // Reduced delay for smoother gameplay
                             }
                         }
-                    }, 3000);
+                    }, 1000);
                 }
             }, 1000);
         } else {
@@ -398,7 +401,7 @@ function botAutoPlayIfNeeded() {
         if (playerAmount == 0) playerAmount = blindAmount;
         if (activePlayer.getIsCardSeen && activePlayer.getIsCardSeen()) playerAmount = cardSendAmount;
 
-        // Decision logic
+        // Decision logic (unchanged)
         if (!nextPlayerCardSeen && activePlayer.getIsCardSeen && !activePlayer.getIsCardSeen()) {
             option = {
                 pack: true,
@@ -448,7 +451,7 @@ function botAutoPlayIfNeeded() {
         let botAction = null;
         let botAmount = option.amount;
 
-        // Improved bot decision with randomness
+        // Improved bot decision with randomness (unchanged)
         if (gameRound === 1) {
             botAction = "blind";
         } else if (activePlayer.getIsCardSeen && activePlayer.getIsCardSeen()) {
@@ -487,7 +490,6 @@ function botAutoPlayIfNeeded() {
                     lastBetAmount: 0 
                 }));
             }
-            // Instead of recursive call, advance to next player
             advanceToNextPlayer();
             return;
         }
@@ -549,16 +551,11 @@ function botAutoPlayIfNeeded() {
                     playerOption,
                     amount
                 });
-                // Advance to next player after bot plays
                 advanceToNextPlayer();
-            } else {
-                console.log('[BOT] Error: activePlayer is undefined or invalid in botAutoPlayIfNeeded.');
             }
-        } else {
-            console.log('[BOT] _simulateBotPlayRound not found.');
         }
     } catch (err) {
-        console.log('[BOT] Error in botAutoPlayIfNeeded:', err);
+        console.error('[BOT] Error in botAutoPlayIfNeeded:', err);
     }
 }
 
@@ -1676,6 +1673,7 @@ function advanceToNextPlayer() {
                             isWaitingForPlayer = true;
                             sendPlayerOption(activePlayer.getSocketId(), activePlayer.getIsCardSeen());
                             console.log("Start Timer for next player");
+                            botPlayedThisRound = false;
                             startTimer();
                         } else {
                             // Delay bot action to allow game state to settle
