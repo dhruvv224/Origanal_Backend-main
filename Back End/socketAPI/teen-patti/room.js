@@ -264,6 +264,7 @@ const Room = function (io, AllInOne) {
 
   // ...existing code...
     function botAutoPlayIfNeeded() {
+        console.log('[BOT] Checking if bot can auto-play...');
         try {
             // Check if conditions for bot to play are met
             if (
