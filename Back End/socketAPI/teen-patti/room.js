@@ -263,7 +263,99 @@ const Room = function (io, AllInOne) {
     // --- BOT AUTO PLAY LOGIC ---
 let isWaitingForPlayer = false; // Flag to track if waiting for real player input
 
-  // ...existing code...
+const gameStart = async () => {
+    console.log("Is Game Started");
+    optionDisable = false;
+    roomDataDelete = true;
+    isGameStarted = true;
+    isGameRunning = true;
+    variationGameStart = false;
+    onlyOnePlayerLeft = false;
+    await common_helper.commonQuery(Room, "findOneAndUpdate", { room_name: roomName }, { $inc: { game_start_counter: 1 } });
+    tableAmount = 0;
+    callAndResetFlag();
+    minimumBetAmount = tableValueLimit.boot_value;
+    io.in(roomName).emit("gamePlayMessage", JSON.stringify({ message: common_message.NEW_ROUND }));
+    setTimeout(() => {
+        if (getActivePlayersObject().length > 1) {
+            let getDealer;
+            if (!gameRestartDealerAlreadySelected) {
+                if (gameRound < 2) {
+                    console.log("First Game Round", gameRound);
+                    getDealer = _.find(playerObjList, (_player) => {
+                        return _player.getDealerPosition() == 1;
+                    });
+                    if (!getDealer) {
+                        getDealer = playerObjList[0];
+                        getDealer.setDealerPosition(1);
+                    }
+                } else {
+                    console.log("Next Game Round", gameRound);
+                    const getCurrentDealer = _.find(playerObjList, (_player) => {
+                        return _player.getDealerPosition() == 1;
+                    });
+                    if (getCurrentDealer) {
+                        getCurrentDealer.setDealerPosition(0);
+                        getDealer = getNextDealer(getCurrentDealer.getPlayerId());
+                        getDealer.setDealerPosition(1);
+                    } else {
+                        getDealer = playerObjList[0];
+                        getDealer.setDealerPosition(1);
+                    }
+                    nextGamePlayerDetails();
+                }
+                setCurrentRoomDealer(getDealer);
+                setActivePlayer(getDealer);
+            } else {
+                getDealer = currentRoomDealer;
+                setActivePlayer(currentRoomDealer);
+            }
+
+            const getPlayerTurnObj = getNextPlayer();
+            playerGameStartBootAmount();
+            setTimeout(() => {
+                winnerDealerInSwitchTable = false;
+                if (!onlyOnePlayerLeft) {
+                    gameStartLeftTimeChange = true;
+                    setPlayersCard();
+                    io.in(roomName).emit("gamePlayMessage", JSON.stringify({ message: common_message.DISTRIBUTE_CARD }));
+                    console.log("-------- Card Distribution Time Dealer ID -> ", { dealerId: getDealer.getPlayerId() });
+                    io.in(roomName).emit("cardDistribution", JSON.stringify({ dealerId: getDealer.getPlayerId(), playerData: getAllPlayerData() }));
+                    setTimeout(() => {
+                        io.in(roomName).emit("gamePlayMessage", JSON.stringify({ message: common_message.CARD_DISTRIBUTION_END }));
+                        io.in(roomName).emit("joinRoomData", JSON.stringify({ roomName: roomName, playerData: platerSittingInRoom(getAllPlayerData()) }));
+                        io.in(roomName).emit("allActivePlayerData", JSON.stringify({ playerData: getAllPlayPlayer() }));
+                    }, 1000);
+
+                    setActivePlayer(getPlayerTurnObj);
+                    setDealerPositionInDb(getDealer.getPlayerId(), roomName, gameRound);
+                    setTimeout(() => {
+                        if (!onlyOnePlayerLeft && playerObjList.length > 1) {
+                            isWaitingForPlayer = !isBotPlayer(getPlayerTurnObj);
+                            if (!isBotPlayer(getPlayerTurnObj)) {
+                                sendPlayerOption(getPlayerTurnObj.getSocketId(), getPlayerTurnObj.getIsCardSeen());
+                                console.log("Start Timer for first player");
+                                startTimer();
+                            } else {
+                                // Delay bot action to allow game state to settle
+                                setTimeout(() => {
+                                    if (isBotPlayer(getPlayerTurnObj) && !isWaitingForPlayer) {
+                                        console.log(`[BOT] Triggering bot play for: ${getPlayerTurnObj.getPlayerId()}`);
+                                        botAutoPlayIfNeeded();
+                                    }
+                                }, 3000);
+                            }
+                        }
+                    }, 3000);
+                }
+            }, 1000);
+        } else {
+            isGameRunning = false;
+            isGameStarted = false;
+        }
+    }, 1000);
+};
+
 function botAutoPlayIfNeeded() {
     try {
         // Check if conditions for bot to play are met
@@ -1339,337 +1431,337 @@ function advanceToNextPlayer() {
             }
             socket.emit("getPlayerDetails", JSON.stringify(myPlayerObj));
         });
-        socket.on("playRound", (playerData) => {
-            let { playerId, playerOption, amount, isBot } = JSON.parse(playerData);
-            console.log("---------------- Play Round ---------------", JSON.parse(playerData));
+  socket.on("playRound", (playerData) => {
+    let { playerId, playerOption, amount, isBot } = JSON.parse(playerData);
+    console.log("---------------- Play Round ---------------", JSON.parse(playerData));
 
-            let playerObject = getMyPlayer(playerId);
-            let isPack = false;
-            let isShow = false;
-            let isSideShow = false;
+    let playerObject = getMyPlayer(playerId);
+    let isPack = false;
+    let isShow = false;
+    let isSideShow = false;
 
-            // Reset waiting flag when a player acts
-            isWaitingForPlayer = false;
+    // Reset waiting flag when a player acts
+    isWaitingForPlayer = false;
 
-            if (isBot) {
-                console.log(`[BOT] Bot action for playerId: ${playerId}, option: ${playerOption}, amount: ${amount}`);
-                if (activePlayer && isBotPlayer(activePlayer)) {
-                    botAutoPlayIfNeeded();
-                }
-                return;
-            }
+    if (isBot) {
+        console.log(`[BOT] Bot action for playerId: ${playerId}, option: ${playerOption}, amount: ${amount}`);
+        if (activePlayer && isBotPlayer(activePlayer)) {
+            botAutoPlayIfNeeded();
+        }
+        return;
+    }
 
-            if (playerOption == "sideShow") {
-                amount = minimumBetAmount;
-                isSlideShowSelected = true;
+    if (playerOption == "sideShow") {
+        amount = minimumBetAmount;
+        isSlideShowSelected = true;
+    } else {
+        isSlideShowSelected = false;
+    }
+
+    if (playerObject && activePlayer && !playerObject.getPlayerTimeOut() && !isGameStartOrNot) {
+        if (optionDisable || activePlayer.getPlayerAmount() < amount) {
+            return false;
+        }
+
+        playerObject.setTimeOutCounter(0);
+        playerObject.betAmount.amount = amount;
+
+        switch (playerOption) {
+            case "pack":
+                playerObject.setIsActive(false);
+                isPack = true;
+                break;
+            case "chaal":
+                playerObject.setPlayerAmount(playerObject.getPlayerAmount() - amount);
+                playerObject.setLoseChips(playerObject.getLoseChips() + amount);
+                break;
+            case "blind":
+                playerObject.setPlayerAmount(playerObject.getPlayerAmount() - amount);
+                playerObject.setLoseChips(playerObject.getLoseChips() + amount);
+                playerObject.setAutoCardSeenCounter(playerObject.getAutoCardSeenCounter() + 1);
+                break;
+            case "show":
+                isShow = true;
+                playerObject.setPlayerAmount(playerObject.getPlayerAmount() - amount);
+                playerObject.setLoseChips(playerObject.getLoseChips() + amount);
+                break;
+            case "sideShow":
+                playerObject.setPlayerAmount(playerObject.getPlayerAmount() - amount * 2);
+                playerObject.setLoseChips(playerObject.getLoseChips() + amount * 2);
+                isSideShow = true;
+                break;
+        }
+
+        if (playerOption != "sideShow") {
+            setTableAmount(tableAmount + amount);
+        } else {
+            setTableAmount(tableAmount + amount * 2);
+        }
+
+        if (!isPack && !isSideShow) {
+            if (playerObject.getIsCardSeen()) {
+                minimumBetAmount = amount / 2;
             } else {
-                isSlideShowSelected = false;
+                minimumBetAmount = amount;
+            }
+        }
+
+        let liveStatus = playerOption == "pack" ? "Packed" : capitalizeFirstLetter(playerOption);
+        let sendAmount = playerOption == "sideShow" ? amount * 2 : amount;
+
+        io.in(roomName).emit("playerBetAmount", JSON.stringify({ playerId: playerId, betAmount: sendAmount }));
+        io.in(roomName).emit("playerRunningStatus", JSON.stringify({ playerId: playerId, playerStatus: liveStatus, lastBetAmount: sendAmount }));
+
+        if (tableValueLimit.pot_max <= tableAmount && playerOption == "chaal") {
+            isGameStartOrNot = true;
+            stopTimer();
+            if (
+                gameType == "Variation" &&
+                (
+                    currentVariation == "Lowest Joker" ||
+                    currentVariation == "Highest Joker" ||
+                    currentVariation == "1947" ||
+                    currentVariation == "Joker"
+                )
+            ) {
+                const getPlayerCardArray = getAllActivePlayerCard();
+                let winTeenPatti = [];
+                switch (currentVariation) {
+                    case "Lowest Joker":
+                        _.map(getPlayerCardArray, (_playerData) => {
+                            const getWhoIsWin = lowestJoker(_playerData);
+                            winTeenPatti.push({ playerId: _playerData.playerId, name: getWhoIsWin.name, score: getWhoIsWin.score });
+                        });
+                        break;
+                    case "Highest Joker":
+                        _.map(getPlayerCardArray, (_playerData) => {
+                            const getWhoIsWin = highCardJoker(_playerData);
+                            winTeenPatti.push({ playerId: _playerData.playerId, name: getWhoIsWin.name, score: getWhoIsWin.score });
+                        });
+                        break;
+                    case "1947":
+                        _.map(getPlayerCardArray, (_playerData) => {
+                            const getWhoIsWin = ak47(_playerData);
+                            winTeenPatti.push({ playerId: _playerData.playerId, name: getWhoIsWin.name, score: getWhoIsWin.score });
+                        });
+                        break;
+                    case "Joker":
+                        _.map(getPlayerCardArray, (_playerData) => {
+                            const getWhoIsWin = jokerWin(_playerData);
+                            winTeenPatti.push({ playerId: _playerData.playerId, name: getWhoIsWin.name, score: getWhoIsWin.score });
+                        });
+                        break;
+                    default:
+                        _.map(getPlayerCardArray, (_playerData) => {
+                            const getWhoIsWin = lowestJoker(_playerData);
+                            winTeenPatti.push({ playerId: _playerData.playerId, name: getWhoIsWin.name, score: getWhoIsWin.score });
+                        });
+                        break;
+                }
+
+                if (winTeenPatti.length > 1) {
+                    const checkWhoIsWin = _.maxBy(winTeenPatti, 'score');
+                    let getWhoWhoIsWin = [];
+                    _.find(winTeenPatti, (_player) => {
+                        if (checkWhoIsWin.score == _player.score) {
+                            getWhoWhoIsWin.push(_player);
+                        }
+                    });
+
+                    if (getWhoWhoIsWin.length > 1) {
+                        let divideTableAmount = Math.floor(tableAmount / getWhoWhoIsWin.length);
+                        _.map(getWhoWhoIsWin, (_player) => {
+                            const getWinPlayerData = getMyPlayer(_player.playerId);
+                            let winPlayerId = getWinPlayerData.getPlayerId();
+                            let getTotalWinAmount = divideTableAmount - getWinPlayerData.getLoseChips();
+                            divideTableAmount = divideTableAmount - calculateWinAmount(getTotalWinAmount);
+                            getWinPlayerData.setWinChips(getTotalWinAmount - calculateWinAmount(getTotalWinAmount));
+                            getWinPlayerData.setPlayerAmount(getWinPlayerData.getPlayerAmount() + divideTableAmount);
+                            getWinPlayerData.setWinPlayHand(getWinPlayerData.getWinPlayHand() + 1);
+                            setWinnerWinAmount(winPlayerId, roomName, gameRound, getTotalWinAmount, getWinPlayerData.getPlayerAmount());
+                            getWinPlayerData.setLoseChips(0);
+                        });
+                        setAllPlayerLoseAmount(0);
+
+                        io.in(roomName).emit("tableShowWinner", JSON.stringify({
+                            sameCard: true,
+                            winMessage: common_message.TABLE_SHOW_WIN,
+                            winPlayerCard: storePlayerVariationCard
+                        }));
+                        setTimeout(() => {
+                            io.in(roomName).emit("winnerHandInfo", JSON.stringify({ handInfo: checkWhoIsWin.name }));
+                            setTimeout(() => {
+                                gameRestart();
+                            }, 2000);
+                        }, 2000);
+                    } else {
+                        storePlayerVariationCard = [];
+                        const getWinPlayer = getWhoIsWin(getPlayerCardArray);
+                        tableShowWinnerPlayer(getWinPlayer, true);
+                    }
+                }
+            } else {
+                const getPlayerCardArray = getAllActivePlayerCard();
+                const getWinPlayer = getWhoIsWin(getPlayerCardArray);
+                tableShowWinnerPlayer(getWinPlayer);
+            }
+        } else {
+            if (!isSideShow) {
+                stopTimer();
+                setActivePlayer(getNextPlayer());
+                if (activePlayer.getAutoCardSeenCounter() == 4) {
+                    activePlayer.setIsCardSeen(true);
+                    activePlayer.setCheckCardSeenCounter(true);
+                }
+                if (getActivePlayersObject().length != 1) {
+                    if (playerOption != "show") {
+                        if (!isBotPlayer(activePlayer)) {
+                            isWaitingForPlayer = true;
+                            sendPlayerOption(activePlayer.getSocketId(), activePlayer.getIsCardSeen());
+                            console.log("Start Timer for next player");
+                            startTimer();
+                        } else {
+                            // Delay bot action to allow game state to settle
+                            setTimeout(() => {
+                                if (isBotPlayer(activePlayer) && !isWaitingForPlayer) {
+                                    console.log(`[BOT] Triggering bot play for: ${activePlayer.getPlayerId()}`);
+                                    botAutoPlayIfNeeded();
+                                }
+                            }, 1000);
+                        }
+                    }
+                }
+                let playerChaalAmount = playerObject.getPlayerAmount();
+                let playerObjectId = playerObject.getPlayerObjectId();
+                updatePlayerRunningChips(playerObjectId, playerChaalAmount);
+            } else {
+                playerObject.setIsSideShowSelected(true);
+                const rightPlayerObj = getPreviousPlayer();
+                console.log("Right Player Object:", rightPlayerObj);
+                io.to(rightPlayerObj.getSocketId()).emit("sideShowRequest", JSON.stringify({
+                    leftSidePlayerId: playerObject.getPlayerId(),
+                    leftSidePlayerName: playerObject.getPlayerObject().name,
+                    leftSidePlayerSocketId: playerObject.getSocketId(),
+                    status: true
+                }));
             }
 
-            if (playerObject && activePlayer && !playerObject.getPlayerTimeOut() && !isGameStartOrNot) {
-                if (optionDisable || activePlayer.getPlayerAmount() < amount) {
-                    return false;
-                }
-
-                playerObject.setTimeOutCounter(0);
-                playerObject.betAmount.amount = amount;
-
-                switch (playerOption) {
-                    case "pack":
-                        playerObject.setIsActive(false);
-                        isPack = true;
-                        break;
-                    case "chaal":
-                        playerObject.setPlayerAmount(playerObject.getPlayerAmount() - amount);
-                        playerObject.setLoseChips(playerObject.getLoseChips() + amount);
-                        break;
-                    case "blind":
-                        playerObject.setPlayerAmount(playerObject.getPlayerAmount() - amount);
-                        playerObject.setLoseChips(playerObject.getLoseChips() + amount);
-                        playerObject.setAutoCardSeenCounter(playerObject.getAutoCardSeenCounter() + 1);
-                        break;
-                    case "show":
-                        isShow = true;
-                        playerObject.setPlayerAmount(playerObject.getPlayerAmount() - amount);
-                        playerObject.setLoseChips(playerObject.getLoseChips() + amount);
-                        break;
-                    case "sideShow":
-                        playerObject.setPlayerAmount(playerObject.getPlayerAmount() - amount * 2);
-                        playerObject.setLoseChips(playerObject.getLoseChips() + amount * 2);
-                        isSideShow = true;
-                        break;
-                }
-
-                if (playerOption != "sideShow") {
-                    setTableAmount(tableAmount + amount);
-                } else {
-                    setTableAmount(tableAmount + amount * 2);
-                }
-
-                if (!isPack && !isSideShow) {
-                    if (playerObject.getIsCardSeen()) {
-                        minimumBetAmount = amount / 2;
-                    } else {
-                        minimumBetAmount = amount;
-                    }
-                }
-
-                let liveStatus = playerOption == "pack" ? "Packed" : capitalizeFirstLetter(playerOption);
-                let sendAmount = playerOption == "sideShow" ? amount * 2 : amount;
-
-                io.in(roomName).emit("playerBetAmount", JSON.stringify({ playerId: playerId, betAmount: sendAmount }));
-                io.in(roomName).emit("playerRunningStatus", JSON.stringify({ playerId: playerId, playerStatus: liveStatus, lastBetAmount: sendAmount }));
-
-                if (tableValueLimit.pot_max <= tableAmount && playerOption == "chaal") {
-                    isGameStartOrNot = true;
+            if (isPack) {
+                isGameStartOrNot = true;
+                if (getActivePlayersObject().length == 1) {
                     stopTimer();
-                    if (
-                        gameType == "Variation" &&
-                        (
-                            currentVariation == "Lowest Joker" ||
-                            currentVariation == "Highest Joker" ||
-                            currentVariation == "1947" ||
-                            currentVariation == "Joker"
-                        )
-                    ) {
-                        const getPlayerCardArray = getAllActivePlayerCard();
-                        let winTeenPatti = [];
-                        switch (currentVariation) {
-                            case "Lowest Joker":
-                                _.map(getPlayerCardArray, (_playerData) => {
-                                    const getWhoIsWin = lowestJoker(_playerData);
-                                    winTeenPatti.push({ playerId: _playerData.playerId, name: getWhoIsWin.name, score: getWhoIsWin.score });
-                                });
-                                break;
-                            case "Highest Joker":
-                                _.map(getPlayerCardArray, (_playerData) => {
-                                    const getWhoIsWin = highCardJoker(_playerData);
-                                    winTeenPatti.push({ playerId: _playerData.playerId, name: getWhoIsWin.name, score: getWhoIsWin.score });
-                                });
-                                break;
-                            case "1947":
-                                _.map(getPlayerCardArray, (_playerData) => {
-                                    const getWhoIsWin = ak47(_playerData);
-                                    winTeenPatti.push({ playerId: _playerData.playerId, name: getWhoIsWin.name, score: getWhoIsWin.score });
-                                });
-                                break;
-                            case "Joker":
-                                _.map(getPlayerCardArray, (_playerData) => {
-                                    const getWhoIsWin = jokerWin(_playerData);
-                                    winTeenPatti.push({ playerId: _playerData.playerId, name: getWhoIsWin.name, score: getWhoIsWin.score });
-                                });
-                                break;
-                            default:
-                                _.map(getPlayerCardArray, (_playerData) => {
-                                    const getWhoIsWin = lowestJoker(_playerData);
-                                    winTeenPatti.push({ playerId: _playerData.playerId, name: getWhoIsWin.name, score: getWhoIsWin.score });
-                                });
-                                break;
-                        }
+                    const getLastActivePlayer = _.find(getActivePlayersObject(), (_player) => {
+                        return _player.getIsActive() == true;
+                    });
 
-                        if (winTeenPatti.length > 1) {
-                            const checkWhoIsWin = _.maxBy(winTeenPatti, 'score');
-                            let getWhoWhoIsWin = [];
-                            _.find(winTeenPatti, (_player) => {
-                                if (checkWhoIsWin.score == _player.score) {
-                                    getWhoWhoIsWin.push(_player);
-                                }
-                            });
+                    if (getLastActivePlayer) {
+                        let winPlayerId = getLastActivePlayer.getPlayerId();
+                        let getTotalWinAmount = tableAmount - getLastActivePlayer.getLoseChips();
+                        tableAmount = tableAmount - calculateWinAmount(getTotalWinAmount);
+                        getLastActivePlayer.setWinChips(getTotalWinAmount - calculateWinAmount(getTotalWinAmount));
+                        getLastActivePlayer.setPlayerAmount(getLastActivePlayer.getPlayerAmount() + tableAmount);
+                        getLastActivePlayer.setWinPlayHand(getLastActivePlayer.getWinPlayHand() + 1);
+                        setWinnerWinAmount(winPlayerId, roomName, gameRound, getTotalWinAmount, getLastActivePlayer.getPlayerAmount());
+                        setAllPlayerLoseAmount(winPlayerId);
+                        io.in(roomName).emit("packWinner", JSON.stringify({
+                            playerId: getLastActivePlayer.getPlayerId(),
+                            status: true,
+                            message: common_message.ALL_PACK_WIN
+                        }));
 
-                            if (getWhoWhoIsWin.length > 1) {
-                                let divideTableAmount = Math.floor(tableAmount / getWhoWhoIsWin.length);
-                                _.map(getWhoWhoIsWin, (_player) => {
-                                    const getWinPlayerData = getMyPlayer(_player.playerId);
-                                    let winPlayerId = getWinPlayerData.getPlayerId();
-                                    let getTotalWinAmount = divideTableAmount - getWinPlayerData.getLoseChips();
-                                    divideTableAmount = divideTableAmount - calculateWinAmount(getTotalWinAmount);
-                                    getWinPlayerData.setWinChips(getTotalWinAmount - calculateWinAmount(getTotalWinAmount));
-                                    getWinPlayerData.setPlayerAmount(getWinPlayerData.getPlayerAmount() + divideTableAmount);
-                                    getWinPlayerData.setWinPlayHand(getWinPlayerData.getWinPlayHand() + 1);
-                                    setWinnerWinAmount(winPlayerId, roomName, gameRound, getTotalWinAmount, getWinPlayerData.getPlayerAmount());
-                                    getWinPlayerData.setLoseChips(0);
-                                });
-                                setAllPlayerLoseAmount(0);
-
-                                io.in(roomName).emit("tableShowWinner", JSON.stringify({
-                                    sameCard: true,
-                                    winMessage: common_message.TABLE_SHOW_WIN,
-                                    winPlayerCard: storePlayerVariationCard
-                                }));
-                                setTimeout(() => {
-                                    io.in(roomName).emit("winnerHandInfo", JSON.stringify({ handInfo: checkWhoIsWin.name }));
-                                    setTimeout(() => {
-                                        gameRestart();
-                                    }, 2000);
-                                }, 2000);
-                            } else {
-                                storePlayerVariationCard = [];
-                                const getWinPlayer = getWhoIsWin(getPlayerCardArray);
-                                tableShowWinnerPlayer(getWinPlayer, true);
-                            }
-                        }
-                    } else {
-                        const getPlayerCardArray = getAllActivePlayerCard();
-                        const getWinPlayer = getWhoIsWin(getPlayerCardArray);
-                        tableShowWinnerPlayer(getWinPlayer);
+                        setTimeout(() => {
+                            gameRestart();
+                        }, 4000);
                     }
                 } else {
-                    if (!isSideShow) {
-                        stopTimer();
-                        setActivePlayer(getNextPlayer());
-                        if (activePlayer.getAutoCardSeenCounter() == 4) {
-                            activePlayer.setIsCardSeen(true);
-                            activePlayer.setCheckCardSeenCounter(true);
-                        }
-                        if (getActivePlayersObject().length != 1) {
-                            if (playerOption != "show") {
-                                if (!isBotPlayer(activePlayer)) {
-                                    isWaitingForPlayer = true;
-                                    sendPlayerOption(activePlayer.getSocketId(), activePlayer.getIsCardSeen());
-                                    console.log("Start Timer for next player");
-                                    startTimer();
-                                } else {
-                                    // Delay bot action to allow game state to settle
-                                    setTimeout(() => {
-                                        if (isBotPlayer(activePlayer) && !isWaitingForPlayer) {
-                                            console.log(`[BOT] Triggering bot play for: ${activePlayer.getPlayerId()}`);
-                                            botAutoPlayIfNeeded();
-                                        }
-                                    }, 1000);
-                                }
-                            }
-                        }
-                        let playerChaalAmount = playerObject.getPlayerAmount();
-                        let playerObjectId = playerObject.getPlayerObjectId();
-                        updatePlayerRunningChips(playerObjectId, playerChaalAmount);
-                    } else {
-                        playerObject.setIsSideShowSelected(true);
-                        const rightPlayerObj = getPreviousPlayer();
-                        console.log("Right Player Object:", rightPlayerObj);
-                        io.to(rightPlayerObj.getSocketId()).emit("sideShowRequest", JSON.stringify({
-                            leftSidePlayerId: playerObject.getPlayerId(),
-                            leftSidePlayerName: playerObject.getPlayerObject().name,
-                            leftSidePlayerSocketId: playerObject.getSocketId(),
-                            status: true
-                        }));
-                    }
+                    isGameStartOrNot = false;
+                }
+            }
 
-                    if (isPack) {
-                        isGameStartOrNot = true;
-                        if (getActivePlayersObject().length == 1) {
-                            stopTimer();
-                            const getLastActivePlayer = _.find(getActivePlayersObject(), (_player) => {
-                                return _player.getIsActive() == true;
+            if (isShow) {
+                isGameStartOrNot = true;
+                stopTimer();
+                if (
+                    gameType == "Variation" &&
+                    (
+                        currentVariation == "Lowest Joker" ||
+                        currentVariation == "Highest Joker" ||
+                        currentVariation == "1947" ||
+                        currentVariation == "Joker"
+                    )
+                ) {
+                    const getPlayerCardArray = getAllActivePlayerCard();
+                    let winTeenPatti = [];
+                    switch (currentVariation) {
+                        case "Lowest Joker":
+                            _.map(getPlayerCardArray, (_playerData) => {
+                                const getWhoIsWin = lowestJoker(_playerData);
+                                winTeenPatti.push({ playerId: _playerData.playerId, name: getWhoIsWin.name, score: getWhoIsWin.score });
                             });
-
-                            if (getLastActivePlayer) {
-                                let winPlayerId = getLastActivePlayer.getPlayerId();
-                                let getTotalWinAmount = tableAmount - getLastActivePlayer.getLoseChips();
-                                tableAmount = tableAmount - calculateWinAmount(getTotalWinAmount);
-                                getLastActivePlayer.setWinChips(getTotalWinAmount - calculateWinAmount(getTotalWinAmount));
-                                getLastActivePlayer.setPlayerAmount(getLastActivePlayer.getPlayerAmount() + tableAmount);
-                                getLastActivePlayer.setWinPlayHand(getLastActivePlayer.getWinPlayHand() + 1);
-                                setWinnerWinAmount(winPlayerId, roomName, gameRound, getTotalWinAmount, getLastActivePlayer.getPlayerAmount());
-                                setAllPlayerLoseAmount(winPlayerId);
-                                io.in(roomName).emit("packWinner", JSON.stringify({
-                                    playerId: getLastActivePlayer.getPlayerId(),
-                                    status: true,
-                                    message: common_message.ALL_PACK_WIN
-                                }));
-
-                                setTimeout(() => {
-                                    gameRestart();
-                                }, 4000);
-                            }
-                        } else {
-                            isGameStartOrNot = false;
-                        }
+                            break;
+                        case "Highest Joker":
+                            _.map(getPlayerCardArray, (_playerData) => {
+                                const getWhoIsWin = highCardJoker(_playerData);
+                                winTeenPatti.push({ playerId: _playerData.playerId, name: getWhoIsWin.name, score: getWhoIsWin.score });
+                            });
+                            break;
+                        case "1947":
+                            _.map(getPlayerCardArray, (_playerData) => {
+                                const getWhoIsWin = ak47(_playerData);
+                                winTeenPatti.push({ playerId: _playerData.playerId, name: getWhoIsWin.name, score: getWhoIsWin.score });
+                            });
+                            break;
+                        case "Joker":
+                            _.map(getPlayerCardArray, (_playerData) => {
+                                const getWhoIsWin = jokerWin(_playerData);
+                                winTeenPatti.push({ playerId: _playerData.playerId, name: getWhoIsWin.name, score: getWhoIsWin.score });
+                            });
+                            break;
+                        default:
+                            _.map(getPlayerCardArray, (_playerData) => {
+                                const getWhoIsWin = lowestJoker(_playerData);
+                                winTeenPatti.push({ playerId: _playerData.playerId, name: getWhoIsWin.name, score: getWhoIsWin.score });
+                            });
+                            break;
                     }
 
-                    if (isShow) {
-                        isGameStartOrNot = true;
-                        stopTimer();
-                        if (
-                            gameType == "Variation" &&
-                            (
-                                currentVariation == "Lowest Joker" ||
-                                currentVariation == "Highest Joker" ||
-                                currentVariation == "1947" ||
-                                currentVariation == "Joker"
-                            )
-                        ) {
-                            const getPlayerCardArray = getAllActivePlayerCard();
-                            let winTeenPatti = [];
-                            switch (currentVariation) {
-                                case "Lowest Joker":
-                                    _.map(getPlayerCardArray, (_playerData) => {
-                                        const getWhoIsWin = lowestJoker(_playerData);
-                                        winTeenPatti.push({ playerId: _playerData.playerId, name: getWhoIsWin.name, score: getWhoIsWin.score });
-                                    });
-                                    break;
-                                case "Highest Joker":
-                                    _.map(getPlayerCardArray, (_playerData) => {
-                                        const getWhoIsWin = highCardJoker(_playerData);
-                                        winTeenPatti.push({ playerId: _playerData.playerId, name: getWhoIsWin.name, score: getWhoIsWin.score });
-                                    });
-                                    break;
-                                case "1947":
-                                    _.map(getPlayerCardArray, (_playerData) => {
-                                        const getWhoIsWin = ak47(_playerData);
-                                        winTeenPatti.push({ playerId: _playerData.playerId, name: getWhoIsWin.name, score: getWhoIsWin.score });
-                                    });
-                                    break;
-                                case "Joker":
-                                    _.map(getPlayerCardArray, (_playerData) => {
-                                        const getWhoIsWin = jokerWin(_playerData);
-                                        winTeenPatti.push({ playerId: _playerData.playerId, name: getWhoIsWin.name, score: getWhoIsWin.score });
-                                    });
-                                    break;
-                                default:
-                                    _.map(getPlayerCardArray, (_playerData) => {
-                                        const getWhoIsWin = lowestJoker(_playerData);
-                                        winTeenPatti.push({ playerId: _playerData.playerId, name: getWhoIsWin.name, score: getWhoIsWin.score });
-                                    });
-                                    break;
-                            }
-
-                            if (winTeenPatti.length > 1) {
-                                if (winTeenPatti[0].score == winTeenPatti[1].score) {
-                                    const getWinPlayer = _.find(winTeenPatti, (_player) => {
-                                        return _player.playerId != playerObject.getPlayerId();
-                                    });
-                                    const getLosePlayer = _.find(winTeenPatti, (_player) => {
-                                        return _player.playerId == playerObject.getPlayerId();
-                                    });
-                                    winPlayerCalculation(getWinPlayer, getLosePlayer, true);
-                                } else {
-                                    storePlayerVariationCard = [];
-                                    const getWinPlayer = getWhoIsWin(getPlayerCardArray);
-                                    const getLosePlayer = _.find(getPlayerCardArray, (_player) => {
-                                        return _player.playerId != getWinPlayer.playerId;
-                                    });
-                                    winPlayerCalculation(getWinPlayer, getLosePlayer, true);
-                                }
-                            }
+                    if (winTeenPatti.length > 1) {
+                        if (winTeenPatti[0].score == winTeenPatti[1].score) {
+                            const getWinPlayer = _.find(winTeenPatti, (_player) => {
+                                return _player.playerId != playerObject.getPlayerId();
+                            });
+                            const getLosePlayer = _.find(winTeenPatti, (_player) => {
+                                return _player.playerId == playerObject.getPlayerId();
+                            });
+                            winPlayerCalculation(getWinPlayer, getLosePlayer, true);
                         } else {
-                            const getPlayerCardArray = getAllActivePlayerCard();
+                            storePlayerVariationCard = [];
                             const getWinPlayer = getWhoIsWin(getPlayerCardArray);
                             const getLosePlayer = _.find(getPlayerCardArray, (_player) => {
                                 return _player.playerId != getWinPlayer.playerId;
                             });
-                            winPlayerCalculation(getWinPlayer, getLosePlayer);
+                            winPlayerCalculation(getWinPlayer, getLosePlayer, true);
                         }
                     }
+                } else {
+                    const getPlayerCardArray = getAllActivePlayerCard();
+                    const getWinPlayer = getWhoIsWin(getPlayerCardArray);
+                    const getLosePlayer = _.find(getPlayerCardArray, (_player) => {
+                        return _player.playerId != getWinPlayer.playerId;
+                    });
+                    winPlayerCalculation(getWinPlayer, getLosePlayer);
                 }
-
-                if (isGameStartOrNot) {
-                    io.in(roomName).emit("stopPanel", JSON.stringify({ status: true }));
-                }
-                io.in(roomName).emit("tableAmount", JSON.stringify({ tableAmount: tableAmount, playerData: getAllPlayerDetails() }));
-            } else {
-                socket.emit("noPlay", JSON.stringify({ status: true }));
             }
-        });
+        }
+
+        if (isGameStartOrNot) {
+            io.in(roomName).emit("stopPanel", JSON.stringify({ status: true }));
+        }
+        io.in(roomName).emit("tableAmount", JSON.stringify({ tableAmount: tableAmount, playerData: getAllPlayerDetails() }));
+    } else {
+        socket.emit("noPlay", JSON.stringify({ status: true }));
+    }
+});
         socket.on("sideShowAcceptDecline", (playerData) => {
             const { playerId, status, leftSidePlayerId, leftSidePlayerSocketId } = JSON.parse(playerData);
             console.log("---------------- SideShow Accept Decline status ---------------", status);
@@ -2468,100 +2560,7 @@ function advanceToNextPlayer() {
             }
         })
     }
-    const gameStart = async () => {
-        console.log("Is Game Started");
-        optionDisable = false
-        roomDataDelete = true
-        isGameStarted = true
-        isGameRunning = true
-        variationGameStart = false
-        onlyOnePlayerLeft = false
-        await common_helper.commonQuery(Room, "findOneAndUpdate", { room_name: roomName }, { $inc: { game_start_counter: 1 } })
-        tableAmount = 0
-        callAndResetFlag()
-        minimumBetAmount = tableValueLimit.boot_value
-        io.in(roomName).emit("gamePlayMessage", JSON.stringify({ message: common_message.NEW_ROUND }))
-        setTimeout(() => {
-            if (getActivePlayersObject().length > 1) {
-                let getDealer
-                if (!gameRestartDealerAlreadySelected) {
-                    if (gameRound < 2) {
-                        console.log("First Game Round", gameRound)
-                        getDealer = _.find(playerObjList, (_player) => {
-                            return _player.getDealerPosition() == 1
-                        })
-                        if (!getDealer) {
-                            getDealer = playerObjList[0]
-                            getDealer.setDealerPosition(1)
-                        }
-                    } else {
-                        console.log("Next Game Round", gameRound)
-                        const getCurrentDealer = _.find(playerObjList, (_player) => {
-                            return _player.getDealerPosition() == 1
-                        })
-                        if (getCurrentDealer) {
-                            getCurrentDealer.setDealerPosition(0)
-                            getDealer = getNextDealer(getCurrentDealer.getPlayerId())
-                            getDealer.setDealerPosition(1)
-                        } else {
-                            getDealer = playerObjList[0]
-                            getDealer.setDealerPosition(1)
-                        }
-                        nextGamePlayerDetails()
-                    }
-                    setCurrentRoomDealer(getDealer)
-                    setActivePlayer(getDealer)
-                } else {
-                    getDealer = currentRoomDealer
-                    setActivePlayer(currentRoomDealer)
-                }
 
-                const getPlayerTurnObj = getNextPlayer()
-
-                playerGameStartBootAmount()
-                setTimeout(() => {
-                    winnerDealerInSwitchTable = false
-                    if (!onlyOnePlayerLeft) {
-                        gameStartLeftTimeChange = true
-                        setPlayersCard()
-                        io.in(roomName).emit("gamePlayMessage", JSON.stringify({ message: common_message.DISTRIBUTE_CARD }))
-
-                        console.log("-------- Card Distribution Time Dealer ID -> ", { dealerId: getDealer.getPlayerId() });
-                        io.in(roomName).emit("cardDistribution", JSON.stringify({ dealerId: getDealer.getPlayerId(), playerData: getAllPlayerData() }))
-                  
-                        setTimeout(() => {
-                            io.in(roomName).emit("gamePlayMessage", JSON.stringify({ message: common_message.CARD_DISTRIBUTION_END }))
-                            io.in(roomName).emit("joinRoomData", JSON.stringify({ roomName: roomName, playerData: platerSittingInRoom(getAllPlayerData()) }))
-                            io.in(roomName).emit("allActivePlayerData", JSON.stringify({ playerData: getAllPlayPlayer() }))
-                        })
-
-                        setActivePlayer(getPlayerTurnObj)
-                        setDealerPositionInDb(getDealer.getPlayerId(), roomName, gameRound)
-                        setTimeout(() => {
-                            if (!onlyOnePlayerLeft) {
-                                if (playerObjList.length > 1) {
-                                    sendPlayerOption(getPlayerTurnObj.getSocketId(), getDealer.getIsCardSeen())
-                                    // check 5
-                                    console.log("check 5");
-                                    startTimer()
-                                    const currentActivePlayer = activePlayer.getPlayerId();
-                                    const checkBotObj = playerObjList.find((_p) => _p.getPlayerId() == currentActivePlayer);
-                                    if (isBotPlayer(checkBotObj)) {
-                                        console.log("Active Player is a Bot, triggering auto play");
-                                        botAutoPlayIfNeeded();
-                                        stopTimer();
-                                    }
-                                }
-                            }
-                        }, 3000)
-                    }
-                }, 1000)
-            } else {
-                isGameRunning = false
-                isGameStarted = false
-            }
-        }, 1000)
-    }
     const gameRestart = () => {
         console.log("--> Game Restart <--");
         isGameRunning = false
