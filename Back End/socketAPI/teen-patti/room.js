@@ -272,7 +272,7 @@ const gameStart = async () => {
     isGameRunning = true;
     variationGameStart = false;
     onlyOnePlayerLeft = false;
-    botPlayedThisRound = false;
+    botPlayedThisRound = false; // Reset bot play flag for new round
     let realPlayerActed = false; // Track if a real player has acted
 
     await common_helper.commonQuery(Room, "findOneAndUpdate", { room_name: roomName }, { $inc: { game_start_counter: 1 } });
@@ -316,14 +316,8 @@ const gameStart = async () => {
                 setActivePlayer(currentRoomDealer);
             }
 
-            // If dealer is a bot, let it perform the initial action (e.g., post boot amount)
-            if (isBotPlayer(getDealer)) {
-                console.log(`[BOT] Dealer ${getDealer.getPlayerId()} is a bot, performing initial action`);
-                botAutoPlayIfNeeded(); // Trigger bot action for dealer
-            }
-
             const getPlayerTurnObj = getNextPlayer();
-            playerGameStartBootAmount(); // Handle boot amounts for all players
+            playerGameStartBootAmount();
             setTimeout(() => {
                 winnerDealerInSwitchTable = false;
                 if (!onlyOnePlayerLeft) {
@@ -343,19 +337,20 @@ const gameStart = async () => {
                     setTimeout(() => {
                         if (!onlyOnePlayerLeft && playerObjList.length > 1) {
                             isWaitingForPlayer = !isBotPlayer(getPlayerTurnObj);
-                            const hasRealPlayers = playerObjList.some(player => !isBotPlayer(player));
                             if (!isBotPlayer(getPlayerTurnObj)) {
-                                realPlayerActed = true; // Real player gets turn
                                 sendPlayerOption(getPlayerTurnObj.getSocketId(), getPlayerTurnObj.getIsCardSeen());
                                 console.log("Start Timer for first player");
                                 startTimer();
                             } else {
+                                const dealer = getDealer.getPlayerId();
                                 // Allow bot to play if it's the first turn (e.g., dealer or first player) or if a real player has acted
-                                console.log(!botPlayedThisRound ,'&&', !isWaitingForPlayer ,'&&', isBotPlayer(getPlayerTurnObj) ,'||', realPlayerActed)
-                                if (!botPlayedThisRound && !isWaitingForPlayer && (isBotPlayer(getPlayerTurnObj) || realPlayerActed)) {
+                                console.log("check in vampsy code",isBotPlayer(dealer),'haha',isBotPlayer(getDealer) ,"||", realPlayerActed,"check haha",isBotPlayer(getPlayerTurnObj));
+                                if (!botPlayedThisRound && (isBotPlayer(getPlayerTurnObj) || realPlayerActed)) {
                                     setTimeout(() => {
-                                        console.log(`[BOT] Triggering bot play for: ${getPlayerTurnObj.getPlayerId()}`);
-                                        botAutoPlayIfNeeded();
+                                        if (isBotPlayer(getPlayerTurnObj) && !isWaitingForPlayer && !botPlayedThisRound) {
+                                            console.log(`[BOT] Triggering bot play for: ${getPlayerTurnObj.getPlayerId()}`);
+                                            botAutoPlayIfNeeded();
+                                        }
                                     }, 1000);
                                 }
                             }
@@ -373,8 +368,6 @@ const gameStart = async () => {
 function botAutoPlayIfNeeded() {
     try {
         // Check if conditions for bot to play are met
-        const hasRealPlayers = playerObjList.some(player => !isBotPlayer(player));
-        const isDealer = activePlayer && activePlayer.getDealerPosition && activePlayer.getDealerPosition() === 1;
         if (
             typeof activePlayer === "undefined" ||
             !activePlayer ||
@@ -384,9 +377,8 @@ function botAutoPlayIfNeeded() {
             typeof isGameRunning === "undefined" ||
             !isGameStarted ||
             !isGameRunning ||
-            (isWaitingForPlayer && !isDealer) || // Allow dealer to act even if waiting
-            botPlayedThisRound ||
-            (hasRealPlayers && !realPlayerActed && !isDealer) // Allow dealer to act regardless of realPlayerActed
+            isWaitingForPlayer ||
+            botPlayedThisRound // Prevent bot from playing multiple times in same round
         ) {
             console.log('[BOT] Bot cannot play: Conditions not met.', {
                 activePlayerExists: !!activePlayer,
@@ -394,10 +386,7 @@ function botAutoPlayIfNeeded() {
                 gameStarted: typeof isGameStarted !== "undefined" ? isGameStarted : false,
                 gameRunning: typeof isGameRunning !== "undefined" ? isGameRunning : false,
                 isWaitingForPlayer,
-                botPlayedThisRound,
-                hasRealPlayers,
-                realPlayerActed,
-                isDealer
+                botPlayedThisRound
             });
             return;
         }
@@ -416,10 +405,10 @@ function botAutoPlayIfNeeded() {
         if (playerAmount == 0) playerAmount = blindAmount;
         if (activePlayer.getIsCardSeen && activePlayer.getIsCardSeen()) playerAmount = cardSendAmount;
 
-        // Dealer-specific action: Post boot amount if first round
-        if (isDealer && gameRound === 1) {
+        // Decision logic (unchanged)
+        if (!nextPlayerCardSeen && activePlayer.getIsCardSeen && !activePlayer.getIsCardSeen()) {
             option = {
-                pack: false,
+                pack: true,
                 blind: true,
                 chaal: false,
                 sideShow: false,
@@ -428,50 +417,37 @@ function botAutoPlayIfNeeded() {
                 maxBetAmount: maxBetAmount / 2
             };
         } else {
-            // Existing decision logic for non-dealer bot actions
-            if (!nextPlayerCardSeen && activePlayer.getIsCardSeen && !activePlayer.getIsCardSeen()) {
+            if (getActivePlayersObject && getActivePlayersObject().length == 2) {
                 option = {
                     pack: true,
-                    blind: true,
-                    chaal: false,
+                    blind: false,
+                    chaal: true,
                     sideShow: false,
-                    show: false,
-                    amount: blindAmount,
-                    maxBetAmount: maxBetAmount / 2
+                    show: true,
+                    amount: cardSendAmount,
+                    maxBetAmount: maxBetAmount
                 };
             } else {
-                if (getActivePlayersObject && getActivePlayersObject().length == 2) {
+                if (!nextPlayerCardSeen) {
                     option = {
                         pack: true,
                         blind: false,
                         chaal: true,
                         sideShow: false,
-                        show: true,
+                        show: false,
                         amount: cardSendAmount,
                         maxBetAmount: maxBetAmount
                     };
                 } else {
-                    if (!nextPlayerCardSeen) {
-                        option = {
-                            pack: true,
-                            blind: false,
-                            chaal: true,
-                            sideShow: false,
-                            show: false,
-                            amount: cardSendAmount,
-                            maxBetAmount: maxBetAmount
-                        };
-                    } else {
-                        option = {
-                            pack: true,
-                            blind: false,
-                            chaal: true,
-                            sideShow: true,
-                            show: false,
-                            amount: cardSendAmount,
-                            maxBetAmount: maxBetAmount
-                        };
-                    }
+                    option = {
+                        pack: true,
+                        blind: false,
+                        chaal: true,
+                        sideShow: true,
+                        show: false,
+                        amount: cardSendAmount,
+                        maxBetAmount: maxBetAmount
+                    };
                 }
             }
         }
@@ -479,29 +455,24 @@ function botAutoPlayIfNeeded() {
         let botAction = null;
         let botAmount = option.amount;
 
-        // Dealer-specific action for first round
-        if (isDealer && gameRound === 1) {
-            botAction = "blind"; // Dealer posts blind bet
+        // Improved bot decision with randomness (unchanged)
+        if (gameRound === 1) {
+            botAction = "blind";
+        } else if (activePlayer.getIsCardSeen && activePlayer.getIsCardSeen()) {
+            const actions = ["chaal", "show", "pack"];
+            botAction = actions[Math.floor(Math.random() * actions.length)];
+        } else if (activePlayer.getPlayerAmount && activePlayer.getPlayerAmount() < option.amount) {
+            botAction = Math.random() < 0.8 ? "pack" : "blind";
+        } else if (option.show && getActivePlayersObject && getActivePlayersObject().length == 2) {
+            botAction = Math.random() < 0.5 ? "show" : "chaal";
+        } else if (option.blind) {
+            botAction = Math.random() < 0.7 ? "blind" : "chaal";
+        } else if (option.chaal) {
+            botAction = Math.random() < 0.7 ? "chaal" : "blind";
+        } else if (option.sideShow) {
+            botAction = Math.random() < 0.5 ? "sideShow" : "chaal";
         } else {
-            // Existing bot decision logic
-            if (gameRound === 1) {
-                botAction = "blind";
-            } else if (activePlayer.getIsCardSeen && activePlayer.getIsCardSeen()) {
-                const actions = ["chaal", "show", "pack"];
-                botAction = actions[Math.floor(Math.random() * actions.length)];
-            } else if (activePlayer.getPlayerAmount && activePlayer.getPlayerAmount() < option.amount) {
-                botAction = Math.random() < 0.8 ? "pack" : "blind";
-            } else if (option.show && getActivePlayersObject && getActivePlayersObject().length == 2) {
-                botAction = Math.random() < 0.5 ? "show" : "chaal";
-            } else if (option.blind) {
-                botAction = Math.random() < 0.7 ? "blind" : "chaal";
-            } else if (option.chaal) {
-                botAction = Math.random() < 0.7 ? "chaal" : "blind";
-            } else if (option.sideShow) {
-                botAction = Math.random() < 0.5 ? "sideShow" : "chaal";
-            } else {
-                botAction = "pack";
-            }
+            botAction = "pack";
         }
 
         console.log(`[BOT] Decided action: ${botAction}, amount: ${botAmount}`);
@@ -510,8 +481,7 @@ function botAutoPlayIfNeeded() {
         if (
             activePlayer.getIsCardSeen && !activePlayer.getIsCardSeen() &&
             activePlayer.getPlayerAmount && activePlayer.getPlayerAmount() > option.amount * 2 &&
-            Math.random() < 0.4 &&
-            !isDealer // Dealer typically doesn't see cards immediately
+            Math.random() < 0.4
         ) {
             if (activePlayer.setIsCardSeen) {
                 activePlayer.setIsCardSeen(true);
@@ -662,7 +632,6 @@ function advanceToNextPlayer() {
         activePlayer = nextPlayer;
         botPlayedThisRound = false; // Reset bot play flag for new player turn
         isWaitingForPlayer = !isBotPlayer(nextPlayer); // Set flag if next player is real
-        const hasRealPlayers = playerObjList.some(player => !isBotPlayer(player));
         if (typeof io !== "undefined" && io && typeof roomName !== "undefined") {
             io.in(roomName).emit("playerTurn", {
                 playerId: nextPlayer.getPlayerId(),
@@ -672,13 +641,12 @@ function advanceToNextPlayer() {
         // Stop timer to pause game for all players
         console.log(`[GAME] Stopping timer for player turn: ${nextPlayer.getPlayerId()}`);
         stopTimer();
-        // Start timer for real players or if no real players remain
+        // Start timer only for real players
         if (!isBotPlayer(nextPlayer)) {
-            realPlayerActed = true; // Real player gets turn
             console.log(`[GAME] Starting timer for real player: ${nextPlayer.getPlayerId()}`);
             sendPlayerOption(nextPlayer.getSocketId(), nextPlayer.getIsCardSeen());
             startTimer();
-        } else if (!hasRealPlayers || realPlayerActed) {
+        } else if (!botPlayedThisRound) {
             // Delay bot action to allow game state to settle
             setTimeout(() => {
                 if (isBotPlayer(nextPlayer) && !isWaitingForPlayer && !botPlayedThisRound) {
@@ -686,16 +654,12 @@ function advanceToNextPlayer() {
                     botAutoPlayIfNeeded();
                 }
             }, 1000);
-        } else {
-            // If real players exist and haven't acted, wait
-            console.log("Waiting for real player to act before bot plays");
-            isWaitingForPlayer = true;
-            startTimer(); // Start timer to allow real players to act
         }
     } else {
         console.log('[GAME] Error: No valid next player found.');
     }
 }
+
 // ...existing code...
 
     // Patch: Expose a function to simulate playRound for bots (call the same logic as socket.on("playRound"))
@@ -1525,7 +1489,7 @@ function advanceToNextPlayer() {
             }
             socket.emit("getPlayerDetails", JSON.stringify(myPlayerObj));
         });
-socket.on("playRound", (playerData) => {
+  socket.on("playRound", (playerData) => {
     let { playerId, playerOption, amount, isBot } = JSON.parse(playerData);
     console.log("---------------- Play Round ---------------", JSON.parse(playerData));
 
@@ -1534,32 +1498,8 @@ socket.on("playRound", (playerData) => {
     let isShow = false;
     let isSideShow = false;
 
-    // Reset waiting flag and mark real player action
-    if (!isBot) {
-        realPlayerActed = true; // Real player has acted
-        isWaitingForPlayer = false;
-    }
-
-    if (isBot) {
-        console.log(`[BOT] Bot action for playerId: ${playerId}, option: ${playerOption}, amount: ${amount}`);
-        if (activePlayer && isBotPlayer(activePlayer)) {
-            botAutoPlayIfNeeded();
-        }
-        return;
-    }
-
-    if (isBot) {
-        console.log(`[BOT] Bot action for playerId: ${playerId}, option: ${playerOption}, amount: ${amount}`);
-        if (activePlayer && isBotPlayer(activePlayer)) {
-            botAutoPlayIfNeeded();
-        }
-        return;
-    }
-    // Reset waiting flag and mark real player action
-    if (!isBot) {
-        realPlayerActed = true; // Real player has acted
-        isWaitingForPlayer = false;
-    }
+    // Reset waiting flag when a player acts
+    isWaitingForPlayer = false;
 
     if (isBot) {
         console.log(`[BOT] Bot action for playerId: ${playerId}, option: ${playerOption}, amount: ${amount}`);
@@ -1742,7 +1682,7 @@ socket.on("playRound", (playerData) => {
                         } else {
                             // Delay bot action to allow game state to settle
                             setTimeout(() => {
-                                if (isBotPlayer(activePlayer) && !isWaitingForPlayer && botPlayedThisRound == false && (realPlayerActed || !playerObjList.some(player => !isBotPlayer(player)))) {
+                                if (isBotPlayer(activePlayer) && !isWaitingForPlayer && botPlayedThisRound == false) {
                                     console.log(`[BOT] Triggering bot play for: ${activePlayer.getPlayerId()}`);
                                     botAutoPlayIfNeeded();
                                 }
@@ -3307,7 +3247,7 @@ socket.on("playRound", (playerData) => {
     // }
 
     //Timer
- const startTimer = () => {
+    const startTimer = () => {
         let isGameEnd = false
         console.log("-- Start Timer --")
         stopTimer()
