@@ -642,8 +642,8 @@ function advanceToNextPlayer() {
         // Start timer only for real players
         if (!isBotPlayer(nextPlayer)) {
             console.log(`[GAME] Starting timer for real player: ${nextPlayer.getPlayerId()}`);
-            sendPlayerOption(nextPlayer.getSocketId(), nextPlayer.getIsCardSeen());
             startTimer();
+            sendPlayerOption(nextPlayer.getSocketId(), nextPlayer.getIsCardSeen());
         } else if (!botPlayedThisRound) {
             // Delay bot action to allow game state to settle
             setTimeout(() => {
@@ -651,7 +651,7 @@ function advanceToNextPlayer() {
                     console.log(`[BOT] Triggering bot play for: ${nextPlayer.getPlayerId()}`);
                     botAutoPlayIfNeeded();
                 }
-            }, 1000);
+            }, 3000);
         }
     } else {
         console.log('[GAME] Error: No valid next player found.');
