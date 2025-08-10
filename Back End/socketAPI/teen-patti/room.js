@@ -348,8 +348,11 @@ const gameStart = async () => {
                                 if (!botPlayedThisRound && (isBotPlayer(getPlayerTurnObj) || realPlayerActed)) {
                                     setTimeout(() => {
                                         if (isBotPlayer(getPlayerTurnObj) && !isWaitingForPlayer && !botPlayedThisRound) {
+                                            startTimer();
                                             console.log(`[BOT] Triggering bot play for: ${getPlayerTurnObj.getPlayerId()}`);
                                             botAutoPlayIfNeeded();
+                                            stopTimer();
+                                            realPlayerActed = false; // Reset after bot plays
                                         }
                                     }, 1000);
                                 }
@@ -649,7 +652,11 @@ function advanceToNextPlayer() {
             setTimeout(() => {
                 if (isBotPlayer(nextPlayer) && !isWaitingForPlayer && !botPlayedThisRound) {
                     console.log(`[BOT] Triggering bot play for: ${nextPlayer.getPlayerId()}`);
+                    startTimer();
                     botAutoPlayIfNeeded();
+                    stopTimer();
+                    botPlayedThisRound = true; // Mark bot as having played this round
+                    realPlayerActed = true;
                 }
             }, 3000);
         }
@@ -1505,6 +1512,8 @@ function advanceToNextPlayer() {
             botAutoPlayIfNeeded();
         }
         return;
+    }else{
+        realPlayerActed = true;
     }
 
     if (playerOption == "sideShow") {
