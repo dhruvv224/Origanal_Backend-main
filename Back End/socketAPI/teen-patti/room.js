@@ -164,7 +164,7 @@ const Room = function (io, AllInOne) {
         let botId, botName, botChips, botAvatar, botProfilePic, botIsStatic = false;
         if (botPlayerData) {
             botId = botPlayerData.player_id || botPlayerData.email || ('BOT_' + Date.now());
-            botName =  BOT_NAMES[Math.floor(Math.random() * BOT_NAMES.length)];
+            botName = botPlayerData.name || BOT_NAMES[Math.floor(Math.random() * BOT_NAMES.length)];
             botChips = botPlayerData.chips || (tableValueLimit.boot_value * 10);
             botAvatar = botPlayerData.avatar_id || 1;
             botProfilePic = botPlayerData.profile_pic || '';
@@ -497,7 +497,7 @@ function botAutoPlayIfNeeded() {
                     lastBetAmount: 0 
                 }));
             }
-            console.log('CCCCCCCCCCCCCCCHHHHHHHHHHHHHHHHHHHHHHHHUUUUUUUUUUUUUUUUUUUUUUUTTTTTTTTTTTTTtttttttttt')
+            console.log("check here advance 1")
             advanceToNextPlayer();
             return;
         }
@@ -559,7 +559,7 @@ function botAutoPlayIfNeeded() {
                     playerOption,
                     amount
                 });
-                console.log("FFFFFFFFFFFFFFFFUUUUUUUUUUUUUUUUUUCCCCCCCCCCCCCCCCCCCCCCKKKKKKKKKKKKKKKKKKKKkkkk")
+            console.log("check here advance 2")
                 advanceToNextPlayer();
             }
         }
@@ -660,7 +660,7 @@ function advanceToNextPlayer() {
                     botPlayedThisRound = true; // Mark bot as having played this round
                     realPlayerActed = true;
                 }
-            }, 8000);
+            }, 3000);
         }
     } else {
         console.log('[GAME] Error: No valid next player found.');
@@ -2104,11 +2104,13 @@ function advanceToNextPlayer() {
                 return _player.socketId == socket.id;
             });
             if (getNewPlayerObj) {
+                console.log('heeellllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllll');
                 emptyPlayerPosition(getNewPlayerObj.position);
                 await common_helper.commonQuery(RoomPlayer, "findOneAndUpdate", { player_data: getNewPlayerObj.playerObject._id, room_name: roomName }, { $set: { current_playing: false } });
                 newPlayerJoinObj.splice(newPlayerJoinObj.indexOf(getNewPlayerObj), 1);
                 deleteRoom();
             } else {
+                console.log('shittttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttt');
                 const playerObject = _.find(playerObjList, (_player) => {
                     return _player.getSocketId() == socket.id;
                 });
