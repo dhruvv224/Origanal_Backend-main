@@ -658,7 +658,7 @@ function advanceToNextPlayer() {
                     botPlayedThisRound = true; // Mark bot as having played this round
                     realPlayerActed = true;
                 }
-            }, 3000);
+            }, 8000);
         }
     } else {
         console.log('[GAME] Error: No valid next player found.');
