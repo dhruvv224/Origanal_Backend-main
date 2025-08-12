@@ -497,6 +497,7 @@ function botAutoPlayIfNeeded() {
                     lastBetAmount: 0 
                 }));
             }
+            console.log('CCCCCCCCCCCCCCCHHHHHHHHHHHHHHHHHHHHHHHHUUUUUUUUUUUUUUUUUUUUUUUTTTTTTTTTTTTTtttttttttt')
             advanceToNextPlayer();
             return;
         }
@@ -558,6 +559,7 @@ function botAutoPlayIfNeeded() {
                     playerOption,
                     amount
                 });
+                console.log("FFFFFFFFFFFFFFFFUUUUUUUUUUUUUUUUUUCCCCCCCCCCCCCCCCCCCCCCKKKKKKKKKKKKKKKKKKKKkkkk")
                 advanceToNextPlayer();
             }
         }
@@ -2102,13 +2104,11 @@ function advanceToNextPlayer() {
                 return _player.socketId == socket.id;
             });
             if (getNewPlayerObj) {
-                console.log('heeellllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllll');
                 emptyPlayerPosition(getNewPlayerObj.position);
                 await common_helper.commonQuery(RoomPlayer, "findOneAndUpdate", { player_data: getNewPlayerObj.playerObject._id, room_name: roomName }, { $set: { current_playing: false } });
                 newPlayerJoinObj.splice(newPlayerJoinObj.indexOf(getNewPlayerObj), 1);
                 deleteRoom();
             } else {
-                console.log('shittttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttt');
                 const playerObject = _.find(playerObjList, (_player) => {
                     return _player.getSocketId() == socket.id;
                 });
