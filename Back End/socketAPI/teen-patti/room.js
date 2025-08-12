@@ -551,17 +551,17 @@ function botAutoPlayIfNeeded() {
 
         if (Room && typeof Room.prototype._simulateBotPlayRound === "function") {
             if (activePlayer && typeof activePlayer.getPlayerId === "function") {
-                Room.prototype._simulateBotPlayRoundcall(this, {
+                Room.prototype._simulateBotPlayRound.call(this, {
                     playerId: activePlayer.getPlayerId(),
                     playerOption,
                     amount
                 });
-            console.log("check here advance 2")
+                console.log("check here advance 2")
                 advanceToNextPlayer();
             }
         }
     } catch (err) {
-        console.log('[BOT] Error in botAutoPlayIfNeeded:', err);
+        console.error('[BOT] Error in botAutoPlayIfNeeded:', err);
     }
 }
 
