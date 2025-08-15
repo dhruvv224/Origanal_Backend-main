@@ -477,7 +477,7 @@ const Room = function (io, AllInOne) {
             if (!activePlayer.getIsCardSeen()) {
                 botAction = "seeCards"; // Force bot to see cards before any action
             } else if (activePlayer.botRoundCounter >= activePlayer.maxBotRounds && getActivePlayersObject().length == 2) {
-                botAction = "pack"; // Force pack after max rounds when two players remain to leave the game
+                botAction = Math.random() < 0.5 ? "pack" : "show"; // Force pack after max rounds when two players remain to leave the game
             } else if (gameRound === 1) {
                 botAction = "chaal"; // Use chaal after seeing cards
             } else if (activePlayer.getPlayerAmount && activePlayer.getPlayerAmount() < option.amount) {
