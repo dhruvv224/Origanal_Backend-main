@@ -3312,11 +3312,10 @@ function advanceToNextPlayer() {
         turnInterval = setInterval(() => {
             // time--
             time -= 0.15;
-            // Broadcast timer update to all players
-            io.in(roomName).emit("turnTimerUpdate", JSON.stringify({
-                playerId: activePlayer ? activePlayer.getPlayerId() : null,
-                timeLeft: Math.max(0, Math.round(time))
-            }));
+            // io.in(roomName).emit("turnTimerUpdate", JSON.stringify({
+            //     playerId: activePlayer ? activePlayer.getPlayerId() : null,
+            //     timeLeft: Math.max(0, Math.round(time))
+            // }));
             // console.log("-- Player Turn Time -->" + time)
             if (time < 0) {
                 if (getActivePlayersObject().length != 0) {
