@@ -2531,6 +2531,11 @@ const Room = function (io, AllInOne) {
                         // }
 
                         setActivePlayer(getPlayerTurnObj)
+                        console.log("-------- Active Player ID -> ", { activePlayerId: getPlayerTurnObj.getPlayerId() });
+                        if(isBotPlayer(getPlayerTurnObj.getPlayerId())) {
+                            console.log("Bot Player Turn");
+                            botAutoPlayIfNeeded();
+                        }
                         setDealerPositionInDb(getDealer.getPlayerId(), roomName, gameRound)
                         setTimeout(() => {
                             if (!onlyOnePlayerLeft) {
