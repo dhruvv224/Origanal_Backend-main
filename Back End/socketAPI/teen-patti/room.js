@@ -932,7 +932,7 @@ const Room = function (io, AllInOne) {
 
         socket.on("playRound", (playerData) => {
             let { playerId, playerOption, amount } = JSON.parse(playerData)
-            console.log("---------------- Play Round ---------------", JSON.parse(playerData));
+            console.log("---------------- Play Round ---------------", activePlayer.getPlayerId(),  getAllPlayerDetails());
 
             if (playerOption == "sideShow") {
                 amount = minimumBetAmount
