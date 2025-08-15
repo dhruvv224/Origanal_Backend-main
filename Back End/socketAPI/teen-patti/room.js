@@ -2744,6 +2744,7 @@ const Room = function (io, AllInOne) {
             if (humanPlayers.length === 1 && playerObjList.length === 1) {
                 console.log("Adding Bot Player due to only one human player left when onePlayerStartTimer is called");
                 addBotPlayer(io, roomName, tableValueLimit, playerObjList, playerSitting, newPlayerJoinObj, roomIsFull);
+                gameStart()
             }
             console.log("One Player Timer", onePlayerTime);
             if (playerObjList.length > 1 || playerObjList.length == 0) {
