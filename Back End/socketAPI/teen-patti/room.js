@@ -536,7 +536,7 @@ function botAutoPlayIfNeeded() {
                 isSideShow = true;
             }
 
-            console.log(`[BOT] Playing round: option=${playerOption}, amount=${amount} after ${randomDelay}ms`);
+            console.log(`[BOT] Playing round: option=${playerOption}, amount=${amount} after ${randomDelay}ms`, botPlayedThisRound);
 
             // Emit timer update for mobile clients
             if (typeof io !== "undefined" && io && typeof roomName !== "undefined") {
