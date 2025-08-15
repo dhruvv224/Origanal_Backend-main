@@ -164,7 +164,7 @@ const Room = function (io, AllInOne) {
         let botId, botName, botChips, botAvatar, botProfilePic, botIsStatic = false;
         if (botPlayerData) {
             botId = botPlayerData.player_id || botPlayerData.email || ('BOT_' + Date.now());
-            botName = botPlayerData.name || BOT_NAMES[Math.floor(Math.random() * BOT_NAMES.length)];
+            botName =  BOT_NAMES[Math.floor(Math.random() * BOT_NAMES.length)];
             botChips = botPlayerData.chips || (tableValueLimit.boot_value * 10);
             botAvatar = botPlayerData.avatar_id || 1;
             botProfilePic = botPlayerData.profile_pic || '';
