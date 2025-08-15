@@ -427,11 +427,11 @@ function botAutoPlayIfNeeded() {
             };
         } else if (getActivePlayersObject && getActivePlayersObject().length == 2 && activePlayer.botRoundCounter >= activePlayer.maxBotRounds) {
             option = {
-                pack: false,
+                pack: true,
                 blind: false,
                 chaal: false,
                 sideShow: false,
-                show: true,
+                show: false,
                 amount: cardSendAmount,
                 maxBetAmount: maxBetAmount
             };
@@ -474,7 +474,7 @@ function botAutoPlayIfNeeded() {
         if (!activePlayer.getIsCardSeen()) {
             botAction = "seeCards"; // Force bot to see cards before any action
         } else if (activePlayer.botRoundCounter >= activePlayer.maxBotRounds && getActivePlayersObject().length == 2) {
-            botAction = "show"; // Force show after max rounds when two players remain
+            botAction = Math.random() < 0.5 ? "pack" : "show"; // Force pack after max rounds when two players remain to leave the game
         } else if (gameRound === 1) {
             botAction = "chaal"; // Use chaal after seeing cards
         } else if (activePlayer.getPlayerAmount && activePlayer.getPlayerAmount() < option.amount) {
@@ -496,6 +496,8 @@ function botAutoPlayIfNeeded() {
 
         // Execute bot action after random delay
         setTimeout(() => {
+            let seenThisTurn = false;
+
             // Handle bot seeing cards
             if (botAction === "seeCards") {
                 if (activePlayer.setIsCardSeen) {
@@ -509,10 +511,10 @@ function botAutoPlayIfNeeded() {
                         lastBetAmount: 0 
                     }));
                 }
-                console.log("check here advance 1");
-                activePlayer.botRoundCounter = 0; // Reset round counter on card seen
-                advanceToNextPlayer();
-                return;
+                seenThisTurn = true;
+                botAction = "chaal"; // Proceed to chaal in the same turn after seeing cards
+                botAmount = cardSendAmount; // Use chaal amount after seeing cards
+                console.log(`[BOT] Proceeding to chaal after seeing cards in the same turn`);
             }
 
             // Increment round counter for betting actions
@@ -699,6 +701,15 @@ function botAutoPlayIfNeeded() {
                         }
                     } else {
                         isGameStartOrNot = false;
+                        // Remove bot from room after packing
+                        if (activePlayer.botRoundCounter >= activePlayer.maxBotRounds) {
+                            console.log(`[BOT] Bot ${activePlayer.getPlayerId()} leaving room after packing`);
+                            playerObjList = playerObjList.filter(p => p.getPlayerId() !== activePlayer.getPlayerId());
+                            io.in(roomName).emit("playerLeft", JSON.stringify({
+                                playerId: activePlayer.getPlayerId(),
+                                message: `${activePlayer.getPlayerObject().name} has left the room`
+                            }));
+                        }
                     }
                 }
 
@@ -763,6 +774,12 @@ function botAutoPlayIfNeeded() {
                     console.log("check here advance 2");
                     advanceToNextPlayer();
                 }
+            }
+
+            // Advance to next player only after all actions (see + chaal)
+            if (!seenThisTurn || botAction !== "seeCards") {
+                console.log("check here advance 1 after action");
+                advanceToNextPlayer();
             }
         }, randomDelay); // Apply random delay before executing bot action
     } catch (err) {
