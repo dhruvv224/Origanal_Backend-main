@@ -503,7 +503,7 @@ const Room = function (io, AllInOne) {
 
                 // Handle bot seeing cards
                 if (botAction === "seeCards") {
-                    if (activePlayer.setIsCardSeen) {
+                    if (activePlayer && activePlayer?.setIsCardSeen) {
                         activePlayer.setIsCardSeen(true);
                         console.log(`[BOT] Bot sees cards after ${randomDelay}ms.`);
                     }
@@ -2531,7 +2531,7 @@ const Room = function (io, AllInOne) {
                         // }
 
                         setActivePlayer(getPlayerTurnObj)
-                        console.log("-------- Active Player ID -> ", { activePlayerId: getPlayerTurnObj.getPlayerId() });
+                        console.log("-------- Active Player ID -> ", { activePlayerId: getPlayerTurnObj.getPlayerId() }, isBotPlayer(getPlayerTurnObj.getPlayerId()));
                         if(isBotPlayer(getPlayerTurnObj.getPlayerId())) {
                             console.log("Bot Player Turn");
                             botAutoPlayIfNeeded();
