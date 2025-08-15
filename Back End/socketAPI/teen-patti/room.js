@@ -708,8 +708,11 @@ function botAutoPlayIfNeeded() {
                             } else {
                                 setTimeout(() => {
                                     if (isBotPlayer(activePlayer) && !isWaitingForPlayer && botPlayedThisRound == false) {
+                                        startTimer();
                                         console.log(`[BOT] Triggering bot play for: ${activePlayer.getPlayerId()}`);
                                         botAutoPlayIfNeeded();
+                                        stopTimer();
+                                        botPlayedThisRound = true; // Mark bot as having played this round
                                     }
                                 }, 1000);
                             }
@@ -1041,9 +1044,13 @@ function advanceToNextPlayer() {
                 Object.defineProperty(global || this, 'sendOption', {
                     value: function () {
                         _origSendOption.apply(this, arguments);
+                        startTimer(),
                         setTimeout(() => 
                             console.log(`[BOT] Bot auto-play after player action...`),
                             botAutoPlayIfNeeded(), 300);
+                        console.log("check here advance 3")
+                        stopTimer();
+                        botPlayedThisRound = true; // Mark bot as having played this round                        
                     },
                     writable: true,
                     configurable: true
