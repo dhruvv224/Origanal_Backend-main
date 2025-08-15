@@ -372,6 +372,39 @@ const Room = function (io, AllInOne) {
             roomIsFull = true;
             console.log('[BOT] Room is now full after adding bot.');
         }
+
+        // --- Auto-start game if bot addition brings player count to 2 or more ---
+        if (typeof isGameStarted !== 'undefined' && typeof gameStart === 'function') {
+            const activePlayers = playerObjList.filter(p => p.getIsActive && p.getIsActive());
+            if (!isGameStarted && activePlayers.length >= 2) {
+                console.log('[BOT] Auto-starting game after bot join.');
+                if (typeof onePlayerStopTimer === 'function') onePlayerStopTimer();
+                if (typeof gameType !== 'undefined' && (gameType === 'TeenPatti' || gameType === 'Private')) {
+                    gameStart();
+                } else if (gameType === 'Variation') {
+                    variationGameStart = true;
+                    gameRestartDealerAlreadySelected = false;
+                    let getCurrentDealer = _.find(playerObjList, (_player) => {
+                        return _player.getDealerPosition && _player.getDealerPosition() == 1;
+                    });
+                    if (!getCurrentDealer) {
+                        getCurrentDealer = playerObjList[0];
+                    }
+                    if (getCurrentDealer) {
+                        const getDealerData = {
+                            playerId: getCurrentDealer.getPlayerId(),
+                            name: getCurrentDealer.getPlayerObject().name || "Guest",
+                            avatar: getCurrentDealer.getPlayerObject().avatar_id,
+                            profilePic: getCurrentDealer.getPlayerObject().profile_pic
+                        };
+                        variationCurrentDealer = getDealerData;
+                        io.in(roomName).emit("variationMessage", JSON.stringify({ message: getDealerData.name + " " + common_message.VARIATIONS_SELECTION, playerData: getDealerData }));
+                        io.to(getCurrentDealer.getSocketId()).emit("variationsSelectionData", JSON.stringify(cardVariations));
+                        if (typeof startSelectionTimer === 'function') startSelectionTimer(getCurrentDealer);
+                    }
+                }
+            }
+        }
     }
 
     function botAutoPlayIfNeeded() {
@@ -817,56 +850,47 @@ const Room = function (io, AllInOne) {
                     // Krunal
 
                     //Auto Game Start
-                    if (playerObjList.length > 1 && !isGameStarted) {
-                        setTimeout(() => {
-                            let checkVariation = true
-                            if (gameType == "Variation") {
-                                checkVariation = !variationGameStart
-                            }
-
-                            if (!isGameStarted && checkVariation) {
-                                // isGameStarted = true
-                                // isGameRunning = true
-
-                                if (gameType == "TeenPatti" || gameType == "Private") {
-                                    gameStart()
-                                } else if (gameType == "Variation") {
-                                    variationGameStart = true
-                                    gameRestartDealerAlreadySelected = false
-                                    let getCurrentDealer = _.find(playerObjList, (_player) => {
-                                        return _player.getDealerPosition() == 1
-                                    })
-
-                                    if (!getCurrentDealer) {
-                                        getCurrentDealer = playerObjList[0]
-                                    }
-
-                                    if (getCurrentDealer) {
-                                        const getDealerData = {
-                                            playerId: getCurrentDealer.getPlayerId(),
-                                            name: getCurrentDealer.getPlayerObject().name || "Guest",
-                                            avatar: getCurrentDealer.getPlayerObject().avatar_id,
-                                            profilePic: getCurrentDealer.getPlayerObject().profile_pic
-                                        }
-                                        variationCurrentDealer = getDealerData
-                                        io.in(roomName).emit("variationMessage", JSON.stringify({ message: getDealerData.name + " " + common_message.VARIATIONS_SELECTION, playerData: getDealerData }))
-                                        io.to(getCurrentDealer.getSocketId()).emit("variationsSelectionData", JSON.stringify(cardVariations))
-                                        startSelectionTimer(getCurrentDealer)
-                                    } else {
-                                        socket.emit("errorOccurred", JSON.stringify({ status: false, message: "An Error Occurred. Please Help us understand the issue.", errorCode: "222" }))
-                                    }
+                    // --- Fix: Always check if enough players to start the game after join ---
+                    setTimeout(() => {
+                        let checkVariation = true;
+                        if (gameType == "Variation") {
+                            checkVariation = !variationGameStart;
+                        }
+                        if (!isGameStarted && playerObjList.length > 1 && checkVariation) {
+                            // Clear waiting timer/message if any
+                            onePlayerStopTimer();
+                            if (gameType == "TeenPatti" || gameType == "Private") {
+                                gameStart();
+                            } else if (gameType == "Variation") {
+                                variationGameStart = true;
+                                gameRestartDealerAlreadySelected = false;
+                                let getCurrentDealer = _.find(playerObjList, (_player) => {
+                                    return _player.getDealerPosition() == 1;
+                                });
+                                if (!getCurrentDealer) {
+                                    getCurrentDealer = playerObjList[0];
                                 }
-                            } else {
-                                if (!isGameStarted) {
-                                    io.in(roomName).emit("variationMessage", JSON.stringify({ message: variationCurrentDealer.name + " " + common_message.VARIATIONS_SELECTION, playerData: variationCurrentDealer }))
+                                if (getCurrentDealer) {
+                                    const getDealerData = {
+                                        playerId: getCurrentDealer.getPlayerId(),
+                                        name: getCurrentDealer.getPlayerObject().name || "Guest",
+                                        avatar: getCurrentDealer.getPlayerObject().avatar_id,
+                                        profilePic: getCurrentDealer.getPlayerObject().profile_pic
+                                    };
+                                    variationCurrentDealer = getDealerData;
+                                    io.in(roomName).emit("variationMessage", JSON.stringify({ message: getDealerData.name + " " + common_message.VARIATIONS_SELECTION, playerData: getDealerData }));
+                                    io.to(getCurrentDealer.getSocketId()).emit("variationsSelectionData", JSON.stringify(cardVariations));
+                                    startSelectionTimer(getCurrentDealer);
+                                } else {
+                                    socket.emit("errorOccurred", JSON.stringify({ status: false, message: "An Error Occurred. Please Help us understand the issue.", errorCode: "222" }));
                                 }
                             }
-                        }, 500)
-                    } else {
-                        console.log({ message: common_message.WAITING_ANOTHER })
-                        io.in(roomName).emit("waitingPlayer", JSON.stringify({ message: common_message.WAITING_ANOTHER }))
-                        onePlayerStartTimer()
-                    }
+                        } else if (!isGameStarted && playerObjList.length === 1) {
+                            // Only one player, show waiting message and start waiting timer
+                            io.in(roomName).emit("waitingPlayer", JSON.stringify({ message: common_message.WAITING_ANOTHER }));
+                            onePlayerStartTimer();
+                        }
+                    }, 500);
                 } else {
                     waitTimer = 2000
                     // Krunal
