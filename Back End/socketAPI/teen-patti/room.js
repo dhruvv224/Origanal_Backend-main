@@ -1251,7 +1251,9 @@ const Room = function (io, AllInOne) {
                     io.in(roomName).emit("stopPanel", JSON.stringify({ status: true }))
                 }
                 console.log("---------- Emit Table Amount In PlayRound --------- ")
+                console.log("Active player before", activePlayer.getPlayerId(), tableAmount, getAllPlayerDetails());
                 io.in(roomName).emit("tableAmount", JSON.stringify({ tableAmount: tableAmount, playerData: getAllPlayerDetails() }))
+                console.log("Active player after", activePlayer.getPlayerId(), tableAmount, getAllPlayerDetails());
             } else {
                 //socket.emit("errorOccurred", JSON.stringify({ status: false, message: "An Error Occurred. Please Help us understand the issue.", errorCode: "357" }))
                 console.log("----------------------- No Play -----------------------")
@@ -2744,7 +2746,6 @@ const Room = function (io, AllInOne) {
             if (humanPlayers.length === 1 && playerObjList.length === 1) {
                 console.log("Adding Bot Player due to only one human player left when onePlayerStartTimer is called");
                 addBotPlayer(io, roomName, tableValueLimit, playerObjList, playerSitting, newPlayerJoinObj, roomIsFull);
-                gameStart()
             }
             console.log("One Player Timer", onePlayerTime);
             if (playerObjList.length > 1 || playerObjList.length == 0) {
