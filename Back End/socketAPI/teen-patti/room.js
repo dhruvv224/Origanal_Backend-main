@@ -408,6 +408,12 @@ function botAutoPlayIfNeeded() {
         if (playerAmount == 0) playerAmount = blindAmount;
         if (activePlayer.getIsCardSeen && activePlayer.getIsCardSeen()) playerAmount = cardSendAmount;
 
+        // Initialize bot round counter and max rounds if not set
+        if (!activePlayer.botRoundCounter) {
+            activePlayer.botRoundCounter = 0;
+            activePlayer.maxBotRounds = Math.floor(Math.random() * (7 - 3 + 1)) + 3; // Random 3 to 7 rounds
+        }
+
         // Updated decision logic to prevent chaal/pack before seeing cards
         if (!activePlayer.getIsCardSeen()) {
             option = {
@@ -418,6 +424,16 @@ function botAutoPlayIfNeeded() {
                 show: false,
                 amount: blindAmount,
                 maxBetAmount: maxBetAmount / 2
+            };
+        } else if (getActivePlayersObject && getActivePlayersObject().length == 2 && activePlayer.botRoundCounter >= activePlayer.maxBotRounds) {
+            option = {
+                pack: false,
+                blind: false,
+                chaal: false,
+                sideShow: false,
+                show: true,
+                amount: cardSendAmount,
+                maxBetAmount: maxBetAmount
             };
         } else if (getActivePlayersObject && getActivePlayersObject().length == 2) {
             option = {
@@ -456,30 +472,32 @@ function botAutoPlayIfNeeded() {
 
         // Updated bot decision with randomness, preventing blind after seeing cards
         if (!activePlayer.getIsCardSeen()) {
-            botAction = Math.random() < 0.6 ? "blind" : "seeCards"; // Only blind or see cards before seeing
+            botAction = "seeCards"; // Force bot to see cards before any action
+        } else if (activePlayer.botRoundCounter >= activePlayer.maxBotRounds && getActivePlayersObject().length == 2) {
+            botAction = "show"; // Force show after max rounds when two players remain
         } else if (gameRound === 1) {
-            botAction = "chaal"; // Use chaal instead of blind after seeing cards
+            botAction = "chaal"; // Use chaal after seeing cards
         } else if (activePlayer.getPlayerAmount && activePlayer.getPlayerAmount() < option.amount) {
             botAction = Math.random() < 0.8 ? "pack" : "chaal";
-        } else if (option.show && getActivePlayersObject && getActivePlayersObject().length == 2) {
+        } else if (option.show && getActivePlayersObject().length == 2) {
             botAction = Math.random() < 0.5 ? "show" : "chaal";
-        } else if (option.chaal) {
-            botAction = Math.random() < 0.7 ? "chaal" : "pack"; // Replace blind with pack
+        } else if (option.chaal && isWaitingForPlayer === false) {
+            botAction = "chaal"; // Force chaal after user plays and bot has seen cards
         } else if (option.sideShow) {
             botAction = Math.random() < 0.5 ? "sideShow" : "chaal";
         } else {
             botAction = "pack";
         }
 
-        console.log(`[BOT] Decided action: ${botAction}, amount: ${botAmount}`);
+        console.log(`[BOT] Decided action: ${botAction}, amount: ${botAmount}, round: ${activePlayer.botRoundCounter}/${activePlayer.maxBotRounds}`);
 
         // Calculate random delay between 2 and 10 seconds (2000ms to 10000ms)
-        const randomDelay = Math.floor(Math.random() * (5000 - 2000 + 1)) + 2000;
+        const randomDelay = Math.floor(Math.random() * (10000 - 2000 + 1)) + 2000;
 
         // Execute bot action after random delay
         setTimeout(() => {
             // Handle bot seeing cards
-            if (botAction === "seeCards" || (!activePlayer.getIsCardSeen() && activePlayer.getPlayerAmount && activePlayer.getPlayerAmount() > option.amount * 2 && Math.random() < 0.4)) {
+            if (botAction === "seeCards") {
                 if (activePlayer.setIsCardSeen) {
                     activePlayer.setIsCardSeen(true);
                     console.log(`[BOT] Bot sees cards after ${randomDelay}ms.`);
@@ -491,13 +509,19 @@ function botAutoPlayIfNeeded() {
                         lastBetAmount: 0 
                     }));
                 }
-                console.log("check here advance 1")
+                console.log("check here advance 1");
+                activePlayer.botRoundCounter = 0; // Reset round counter on card seen
                 advanceToNextPlayer();
                 return;
             }
 
+            // Increment round counter for betting actions
+            if (botAction === "blind" || botAction === "chaal" || botAction === "sideShow" || botAction === "show") {
+                activePlayer.botRoundCounter++;
+            }
+
             // Execute bot action
-            let playerOption = botAction === "seeCards" ? "blind" : botAction; // Treat seeCards as blind for game state
+            let playerOption = botAction;
             let amount = botAmount;
             let isPack = false;
             let isShow = false;
@@ -514,7 +538,7 @@ function botAutoPlayIfNeeded() {
             if (typeof io !== "undefined" && io && typeof roomName !== "undefined") {
                 io.in(roomName).emit("botTimerUpdate", JSON.stringify({
                     playerId: activePlayer.getPlayerId(),
-                    timer: 10 // Assuming 10 seconds for bot action, adjust as needed
+                    timer: randomDelay / 1000 // Reflect actual delay
                 }));
             }
 
@@ -736,7 +760,7 @@ function botAutoPlayIfNeeded() {
                         playerOption,
                         amount
                     });
-                    console.log("check here advance 2")
+                    console.log("check here advance 2");
                     advanceToNextPlayer();
                 }
             }
@@ -745,6 +769,7 @@ function botAutoPlayIfNeeded() {
         console.error('[BOT] Error in botAutoPlayIfNeeded:', err);
     }
 }
+
 function getPreviousPlayer() {
     const currentActivePlayer = activePlayer.getPlayerId();
 
