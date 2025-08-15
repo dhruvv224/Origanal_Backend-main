@@ -2673,7 +2673,7 @@ function advanceToNextPlayer() {
         console.log("--> Game Restart <--");
         // Check if the previous game is fully completed
         if (isGameRunning || isGameStarted) {
-            console.log("--> Previous game not completed, delaying restart <--");
+            console.log("--> Previous game not completed, delaying restart <--",isGameRunning ,"||", isGameStarted);
             setTimeout(gameRestart, 1000); // Retry after 1 second
             return;
         }
