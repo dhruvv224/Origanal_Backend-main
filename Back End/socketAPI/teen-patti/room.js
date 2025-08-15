@@ -385,17 +385,13 @@ const Room = function (io, AllInOne) {
                 typeof isGameStarted === "undefined" ||
                 typeof isGameRunning === "undefined" ||
                 !isGameStarted ||
-                !isGameRunning ||
-                isWaitingForPlayer ||
-                botPlayedThisRound // Prevent bot from playing multiple times in same round
+                !isGameRunning
             ) {
                 console.log('[BOT] Bot cannot play: Conditions not met.', {
                     activePlayerExists: !!activePlayer,
                     isBot: typeof isBotPlayer === "function" && activePlayer ? isBotPlayer(activePlayer) : false,
                     gameStarted: typeof isGameStarted !== "undefined" ? isGameStarted : false,
-                    gameRunning: typeof isGameRunning !== "undefined" ? isGameRunning : false,
-                    isWaitingForPlayer,
-                    botPlayedThisRound
+                    gameRunning: typeof isGameRunning !== "undefined" ? isGameRunning : false
                 });
                 return;
             }
@@ -488,7 +484,7 @@ const Room = function (io, AllInOne) {
                 botAction = Math.random() < 0.8 ? "pack" : "chaal";
             } else if (option.show && getActivePlayersObject().length == 2) {
                 botAction = Math.random() < 0.5 ? "show" : "chaal";
-            } else if (option.chaal && isWaitingForPlayer === false) {
+            } else if (option.chaal) {
                 botAction = "chaal"; // Force chaal after user plays and bot has seen cards
             } else if (option.sideShow) {
                 botAction = Math.random() < 0.5 ? "sideShow" : "chaal";
@@ -554,7 +550,6 @@ const Room = function (io, AllInOne) {
 
                 // Update game state to match socket.on("playRound")
                 if (activePlayer) {
-                    isWaitingForPlayer = false; // Reset waiting flag
                     activePlayer.setTimeOutCounter(0);
                     activePlayer.betAmount.amount = amount;
 
@@ -746,19 +741,16 @@ const Room = function (io, AllInOne) {
                         if (getActivePlayersObject().length != 1) {
                             if (playerOption != "show") {
                                 if (!isBotPlayer(activePlayer)) {
-                                    isWaitingForPlayer = true;
                                     sendPlayerOption(activePlayer.getSocketId(), activePlayer.getIsCardSeen());
                                     console.log("Start Timer for next player");
-                                    botPlayedThisRound = false;
                                     startTimer();
                                 } else {
                                     setTimeout(() => {
-                                        if (isBotPlayer(activePlayer) && !isWaitingForPlayer && botPlayedThisRound == false) {
+                                        if (isBotPlayer(activePlayer)) {
                                             startTimer();
                                             console.log(`[BOT] Triggering bot play for: ${activePlayer.getPlayerId()}`);
                                             botAutoPlayIfNeeded();
                                             stopTimer();
-                                            botPlayedThisRound = true; // Mark bot as having played this round
                                         }
                                     }, 1000);
                                 }
@@ -1656,11 +1648,11 @@ const Room = function (io, AllInOne) {
                     io.in(roomName).emit("stopPanel", JSON.stringify({ status: true }))
                 }
                 console.log("---------- Emit Table Amount In PlayRound --------- ")
-                console.log("Active player before", activePlayer.getPlayerId(), tableAmount, getAllPlayerDetails());
                 io.in(roomName).emit("tableAmount", JSON.stringify({ tableAmount: tableAmount, playerData: getAllPlayerDetails() }))
-                console.log("Active player after", activePlayer.getPlayerId(), tableAmount, getAllPlayerDetails());
+
                 // If active player is a bot, trigger bot auto play
                 if (isBotPlayer(activePlayer)) {
+                    console.log("---------- Bot Auto Play Triggered --------- ")
                     botAutoPlayIfNeeded();
                 }
             } else {
