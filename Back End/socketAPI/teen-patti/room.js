@@ -474,7 +474,7 @@ function botAutoPlayIfNeeded() {
         console.log(`[BOT] Decided action: ${botAction}, amount: ${botAmount}`);
 
         // Calculate random delay between 2 and 10 seconds (2000ms to 10000ms)
-        const randomDelay = Math.floor(Math.random() * (10000 - 2000 + 1)) + 2000;
+        const randomDelay = Math.floor(Math.random() * (5000 - 2000 + 1)) + 2000;
 
         // Execute bot action after random delay
         setTimeout(() => {
