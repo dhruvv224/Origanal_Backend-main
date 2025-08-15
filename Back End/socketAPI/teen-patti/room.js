@@ -412,6 +412,7 @@ function botAutoPlayIfNeeded() {
         if (!activePlayer.botRoundCounter) {
             activePlayer.botRoundCounter = 0;
             activePlayer.maxBotRounds = Math.floor(Math.random() * (7 - 3 + 1)) + 3; // Random 3 to 7 rounds
+            console.log(`[BOT] Initialized maxBotRounds: ${activePlayer.maxBotRounds} for ${activePlayer.getPlayerId()}`);
         }
 
         // Updated decision logic to prevent chaal/pack before seeing cards
@@ -474,7 +475,7 @@ function botAutoPlayIfNeeded() {
         if (!activePlayer.getIsCardSeen()) {
             botAction = "seeCards"; // Force bot to see cards before any action
         } else if (activePlayer.botRoundCounter >= activePlayer.maxBotRounds && getActivePlayersObject().length == 2) {
-            botAction = Math.random() < 0.5 ? "pack" : "show"; // Force pack after max rounds when two players remain to leave the game
+            botAction = "pack"; // Force pack after max rounds when two players remain to leave the game
         } else if (gameRound === 1) {
             botAction = "chaal"; // Use chaal after seeing cards
         } else if (activePlayer.getPlayerAmount && activePlayer.getPlayerAmount() < option.amount) {
@@ -520,6 +521,7 @@ function botAutoPlayIfNeeded() {
             // Increment round counter for betting actions
             if (botAction === "blind" || botAction === "chaal" || botAction === "sideShow" || botAction === "show") {
                 activePlayer.botRoundCounter++;
+                console.log(`[BOT] Round counter incremented to ${activePlayer.botRoundCounter}/${activePlayer.maxBotRounds}`);
             }
 
             // Execute bot action
@@ -701,14 +703,17 @@ function botAutoPlayIfNeeded() {
                         }
                     } else {
                         isGameStartOrNot = false;
-                        // Remove bot from room after packing
+                        // Remove bot from room after packing due to max rounds
                         if (activePlayer.botRoundCounter >= activePlayer.maxBotRounds) {
-                            console.log(`[BOT] Bot ${activePlayer.getPlayerId()} leaving room after packing`);
+                            console.log(`[BOT] Bot ${activePlayer.getPlayerId()} leaving room after packing at round ${activePlayer.botRoundCounter}`);
                             playerObjList = playerObjList.filter(p => p.getPlayerId() !== activePlayer.getPlayerId());
                             io.in(roomName).emit("playerLeft", JSON.stringify({
                                 playerId: activePlayer.getPlayerId(),
                                 message: `${activePlayer.getPlayerObject().name} has left the room`
                             }));
+                            // Clear bot-specific properties
+                            activePlayer.botRoundCounter = undefined;
+                            activePlayer.maxBotRounds = undefined;
                         }
                     }
                 }
