@@ -2531,6 +2531,7 @@ const Room = function (io, AllInOne) {
                         // }
 
                         setActivePlayer(getPlayerTurnObj)
+                        console.log(String(player.getPlayerId()).startsWith('BOT_') ,"||", (player.getPlayerObject && player.getPlayerObject().isBot));
                         console.log("-------- Active Player ID -> ", { activePlayerId: getPlayerTurnObj.getPlayerId() }, isBotPlayer(getPlayerTurnObj.getPlayerId()));
                         if(isBotPlayer(getPlayerTurnObj.getPlayerId())) {
                             console.log("Bot Player Turn");
