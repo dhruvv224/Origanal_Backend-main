@@ -2612,7 +2612,7 @@ function advanceToNextPlayer() {
             dealerPosition: dealerPosition,
             playerStandUp: false,
             card: [],
-            // standUpTime: standupPlayerStartTimer(playerId),
+            standUpTime: standupPlayerStartTimer(playerId),
             playerObject: playerObject
         }
         newPlayerJoinObj.push(newPlayer)
@@ -3271,78 +3271,85 @@ function advanceToNextPlayer() {
     }
 
     //Standup Player Left Timer
-    // const standupPlayerStartTimer = (_playerId) => {
-    //     console.log("Standup Player Start Timer");
-    //     standupPlayerStopTimer()
-    //     let getPLayer = _.find((_player) => {
-    //         return _player.playerId == _playerId;
-    //     })
-    //     standupPlayerInterval = setInterval(() => {
-    //         if (standupPlayerTime <= 0) {
-    //             standupPlayerStopTimer()
-    //             if (newPlayerJoinObj.length >= 1) {
-    //                 let getStandUpIndex = _.findIndex((_player) => {
-    //                     return _player.playerId == _playerId
-    //                 })
-    //                 io.in(roomName).emit("onePlayerLeft", JSON.stringify({ status: common_message.WAITING_ANOTHER }))
-    //                 newPlayerJoinObj.splice(newPlayerJoinObj.indexOf(getStandUpIndex))
-    //             }
-    //         }
-    //         standupPlayerTime--
-    //         console.log("Standup Player Timer", standupPlayerTime);
-    //     }, 1000)
-    //     return standupPlayerTime;
-    // }
-    // const standupPlayerStopTimer = () => {
-    //     console.log("Standup Player Stop Timer");
-    //     clearInterval(standupPlayerInterval)
-    //     standupPlayerTime = standupPlayerDefaultTime
-    // }
+    const standupPlayerStartTimer = (_playerId) => {
+        console.log("Standup Player Start Timer");
+        standupPlayerStopTimer()
+        let getPLayer = _.find((_player) => {
+            return _player.playerId == _playerId;
+        })
+        standupPlayerInterval = setInterval(() => {
+            if (standupPlayerTime <= 0) {
+                standupPlayerStopTimer()
+                if (newPlayerJoinObj.length >= 1) {
+                    let getStandUpIndex = _.findIndex((_player) => {
+                        return _player.playerId == _playerId
+                    })
+                    io.in(roomName).emit("onePlayerLeft", JSON.stringify({ status: common_message.WAITING_ANOTHER }))
+                    newPlayerJoinObj.splice(newPlayerJoinObj.indexOf(getStandUpIndex))
+                }
+            }
+            standupPlayerTime--
+            console.log("Standup Player Timer", standupPlayerTime);
+        }, 1000)
+        return standupPlayerTime;
+    }
+    const standupPlayerStopTimer = () => {
+        console.log("Standup Player Stop Timer");
+        clearInterval(standupPlayerInterval)
+        standupPlayerTime = standupPlayerDefaultTime
+    }
 
     //Timer
     const startTimer = () => {
-        let isGameEnd = false
-        console.log("-- Start Timer --")
-        stopTimer()
+        let isGameEnd = false;
+        console.log("-- Start Timer --");
+        stopTimer();
+        // Broadcast timer start to all players in the room
+        io.in(roomName).emit("turnTimer", JSON.stringify({
+            playerId: activePlayer ? activePlayer.getPlayerId() : null,
+            duration: time || 15000 // or your default turn time in ms
+        }));
         turnInterval = setInterval(() => {
             // time--
-            time -= 0.15
+            time -= 0.15;
+            // Broadcast timer update to all players
+            io.in(roomName).emit("turnTimerUpdate", JSON.stringify({
+                playerId: activePlayer ? activePlayer.getPlayerId() : null,
+                timeLeft: Math.max(0, Math.round(time))
+            }));
             // console.log("-- Player Turn Time -->" + time)
             if (time < 0) {
                 if (getActivePlayersObject().length != 0) {
-                    stopTimer()
+                    stopTimer();
                     if (activePlayer) {
-
-                        let playerObject = getMyPlayer(activePlayer.getPlayerId())
-
+                        let playerObject = getMyPlayer(activePlayer.getPlayerId());
                         if (playerObject) {
                             console.log("------------------------ Time Out ------------------------");
-                            playerObject.setPlayerTimeOut(true)
-                            playerObject.setTimeOutCounter(playerObject.getTimeOutCounter() + 1)
+                            playerObject.setPlayerTimeOut(true);
+                            playerObject.setTimeOutCounter(playerObject.getTimeOutCounter() + 1);
                             console.log("playerObject.getTimeOutCounter()===============================");
                             console.log(playerObject.getTimeOutCounter());
                             console.log("playerObject.getTimeOutCounter()===============================");
                             if (playerObject.getTimeOutCounter() == 2) {
                                 if (!playerObject.getPlayerReconnection()) {
-                                    io.to(playerObject.getSocketId()).emit("autoLeftPlayer", JSON.stringify({ status: true }))
+                                    io.to(playerObject.getSocketId()).emit("autoLeftPlayer", JSON.stringify({ status: true }));
                                     console.log("No Reconnection");
                                 } else {
                                     console.log("------------------------ Reconnection ------------------------");
-                                    playerDisconnectInGamePlay("defaultDisconnect", playerObject, playerObject.getSocketId())
+                                    playerDisconnectInGamePlay("defaultDisconnect", playerObject, playerObject.getSocketId());
                                 }
                             }
-
                             if (!playerObject.getIsSideShowSelected()) {
-                                io.in(roomName).emit("playerRunningStatus", JSON.stringify({ playerId: activePlayer.getPlayerId(), playerStatus: "Time Out", lastBetAmount: 0 }))
+                                io.in(roomName).emit("playerRunningStatus", JSON.stringify({ playerId: activePlayer.getPlayerId(), playerStatus: "Time Out", lastBetAmount: 0 }));
                                 if (playerObject) {
-                                    playerObject.setIsActive(false)
+                                    playerObject.setIsActive(false);
                                 }
                                 if (getActivePlayersObject().length == 1) {
                                     const getLastActivePlayer = _.find(getActivePlayersObject(), (_player) => {
                                         return _player.getIsActive() == true;
-                                    })
+                                    });
                                     if (getLastActivePlayer) {
-                                        isGameEnd = true
+                                        isGameEnd = true;
                                         let winPlayerId = getLastActivePlayer.getPlayerId()
                                         let getTotalWinAmount = tableAmount - getLastActivePlayer.getLoseChips()
                                         tableAmount = tableAmount - calculateWinAmount(getTotalWinAmount)
