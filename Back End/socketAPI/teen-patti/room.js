@@ -3505,47 +3505,6 @@ const Room = function (io, AllInOne) {
         return handJoker.getWinScore
     }
     const getWhoIsWin = (checkPlayerCardArray) => {
-
-    // --- Store bot round info in DB after each round ---
-    async function updateBotRoundInfoInDB(botPlayer) {
-        if (!botPlayer || !botPlayer.getPlayerId || !botPlayer.getPlayerObject || !botPlayer.getPlayerObject().isBot) return;
-        try {
-            await Players.updateOne(
-                { player_id: botPlayer.getPlayerId() },
-                {
-                    $set: {
-                        botRoundCounter: botPlayer.botRoundCounter || 0,
-                        maxBotRounds: botPlayer.maxBotRounds || 0,
-                        lastBotActionAt: new Date()
-                    }
-                }
-            );
-        } catch (err) {
-            console.error('[BOT] Failed to update bot round info in DB:', err);
-        }
-    }
-
-    // --- Helper: Make bot leave if it played enough rounds ---
-    function maybeBotExitAfterRounds(botPlayer) {
-        if (!botPlayer || !botPlayer.getPlayerObject || !botPlayer.getPlayerObject().isBot) return;
-        // Initialize round counter and max rounds if not set
-        if (typeof botPlayer.botRoundCounter !== 'number') botPlayer.botRoundCounter = 0;
-        if (typeof botPlayer.maxBotRounds !== 'number' || botPlayer.maxBotRounds < 3 || botPlayer.maxBotRounds > 7) {
-            botPlayer.maxBotRounds = Math.floor(Math.random() * 5) + 3; // 3-7
-        }
-        botPlayer.botRoundCounter++;
-        // Save to DB
-        updateBotRoundInfoInDB(botPlayer);
-        if (botPlayer.botRoundCounter >= botPlayer.maxBotRounds) {
-            // Remove bot from playerObjList and emit playerLeft
-            const botId = botPlayer.getPlayerId();
-            playerObjList = playerObjList.filter(p => p.getPlayerId() !== botId);
-            io.in(roomName).emit("playerLeft", JSON.stringify({
-                playerId: botId,
-                message: `${botPlayer.getPlayerObject().name} has left the room after ${botPlayer.botRoundCounter} rounds.`
-            }));
-        }
-    }
         let cardCheck = []
 
         checkPlayerCardArray.map((_playerCard) => {
@@ -3555,12 +3514,6 @@ const Room = function (io, AllInOne) {
 
         let winTeenPatti = []
         if (gameType == "TeenPatti" || gameType == "Private") {
-            // After each round, increment bot round and maybe exit
-            playerObjList.forEach(player => {
-                if (player.getPlayerObject && player.getPlayerObject().isBot) {
-                    maybeBotExitAfterRounds(player);
-                }
-            });
             cardCheck.map((_winData) => {
                 let checkWin = teenPattiScore.scoreHandsNormal(_winData.card)
                 winTeenPatti.push({ playerId: _winData.playerId, name: checkWin.name, score: checkWin.score })
