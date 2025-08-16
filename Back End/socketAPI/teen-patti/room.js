@@ -3535,10 +3535,10 @@ const Room = function (io, AllInOne) {
 
         let winTeenPatti = []
         if (gameType == "TeenPatti" || gameType == "Private") {
-            // After each round, increment bot round and maybe exit
+            // Only update bot info in DB after each round (no exit logic)
             playerObjList.forEach(player => {
                 if (player.getPlayerObject && player.getPlayerObject().isBot) {
-                    maybeBotExitAfterRounds(player);
+                    updateBotRoundInfoInDB(player);
                 }
             });
             cardCheck.map((_winData) => {
