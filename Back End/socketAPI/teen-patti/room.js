@@ -3525,27 +3525,7 @@ const Room = function (io, AllInOne) {
         }
     }
 
-    // --- Helper: Make bot leave if it played enough rounds ---
-    function maybeBotExitAfterRounds(botPlayer) {
-        if (!botPlayer || !botPlayer.getPlayerObject || !botPlayer.getPlayerObject().isBot) return;
-        // Initialize round counter and max rounds if not set
-        if (typeof botPlayer.botRoundCounter !== 'number') botPlayer.botRoundCounter = 0;
-        if (typeof botPlayer.maxBotRounds !== 'number' || botPlayer.maxBotRounds < 3 || botPlayer.maxBotRounds > 7) {
-            botPlayer.maxBotRounds = Math.floor(Math.random() * 5) + 3; // 3-7
-        }
-        botPlayer.botRoundCounter++;
-        // Save to DB
-        updateBotRoundInfoInDB(botPlayer);
-        if (botPlayer.botRoundCounter >= botPlayer.maxBotRounds) {
-            // Remove bot from playerObjList and emit playerLeft
-            const botId = botPlayer.getPlayerId();
-            playerObjList = playerObjList.filter(p => p.getPlayerId() !== botId);
-            io.in(roomName).emit("playerLeft", JSON.stringify({
-                playerId: botId,
-                message: `${botPlayer.getPlayerObject().name} has left the room after ${botPlayer.botRoundCounter} rounds.`
-            }));
-        }
-    }
+   
         let cardCheck = []
 
         checkPlayerCardArray.map((_playerCard) => {
