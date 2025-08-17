@@ -470,7 +470,8 @@ const Room = function (io, AllInOne) {
             nextPlayerCardSeen,
             gameRound: typeof gameRound !== "undefined" ? gameRound : 1,
             tableAmount: typeof tableAmount !== "undefined" ? tableAmount : 0,
-            potMax: (typeof tableValueLimit !== "undefined" && tableValueLimit && tableValueLimit.pot_max) ? tableValueLimit.pot_max : 0
+            potMax: (typeof tableValueLimit !== "undefined" && tableValueLimit && tableValueLimit.pot_max) ? tableValueLimit.pot_max : 0,
+            otherPlayerAction: getLastOtherPlayerAction(activePlayer.getPlayerId())
         });
 
         console.log(`[BOT] Decision: ${botDecision.action}, amount: ${botDecision.amount}, round: ${activePlayer.botRoundCounter}/${activePlayer.maxBotRounds}, strategy: ${activePlayer.botStrategy}, personality: ${activePlayer.botPersonality}`);
@@ -490,6 +491,23 @@ const Room = function (io, AllInOne) {
             executeFallbackAction(activePlayer);
         }, 2000);
     }
+}
+
+// Track last action of other players for bot decision making
+let lastPlayerActions = {};
+
+function getLastOtherPlayerAction(currentPlayerId) {
+    // Find the last action of any other player
+    for (let playerId in lastPlayerActions) {
+        if (playerId !== currentPlayerId.toString()) {
+            return lastPlayerActions[playerId];
+        }
+    }
+    return undefined;
+}
+
+function updatePlayerAction(playerId, action) {
+    lastPlayerActions[playerId] = action;
 }
 
 function makeBotDecision(player, gameState) {
@@ -514,8 +532,25 @@ function makeBotDecision(player, gameState) {
                 adjustedCardStrength += 0.1;
             }
             
+
+            
             if (gameState.playerCount === 2) {
                 // In heads up, show or pack based on adjusted card strength
+                // Special case: bot can show if other player has acted and bot has low cards
+                let otherPlayerHasActed = false;
+                if (typeof gameState.otherPlayerAction !== 'undefined' && 
+                    ['show', 'chaal', 'blind', 'pack'].includes(gameState.otherPlayerAction)) {
+                    otherPlayerHasActed = true;
+                }
+                
+                // If other player has acted and bot has low cards, allow show action
+                if (otherPlayerHasActed && adjustedCardStrength <= 0.4) {
+                    if (Math.random() < 0.6) {
+                        return { action: 'show', amount: gameState.chaalAmount };
+                    }
+                }
+                
+                // Default behavior for 2 players
                 if (adjustedCardStrength > 0.6) {
                     return { action: 'show', amount: gameState.chaalAmount };
                 } else {
@@ -617,6 +652,33 @@ function makeBotDecision(player, gameState) {
             }
         }
 
+        // Check if there are enough players for show/sideShow actions
+        if (gameState.playerCount < 3) {
+            // Special case for 2 players: bot can show if other player has shown/chaal/blind/pack and bot has low cards
+            if (gameState.playerCount === 2) {
+                // Check if other player has taken action (show, chaal, blind, pack)
+                let otherPlayerHasActed = false;
+                if (typeof gameState.otherPlayerAction !== 'undefined' && 
+                    ['show', 'chaal', 'blind', 'pack'].includes(gameState.otherPlayerAction)) {
+                    otherPlayerHasActed = true;
+                }
+                
+                // If other player has acted and bot has low cards, allow show action
+                if (otherPlayerHasActed && player.cardStrength <= 0.4) {
+                    if (Math.random() < 0.6) {
+                        return { action: 'show', amount: gameState.chaalAmount };
+                    }
+                }
+            }
+            
+            // Default behavior for fewer than 3 players: only allow pack or chaal actions
+            if (player.cardStrength > 0.8) {
+                return { action: 'chaal', amount: gameState.chaalAmount };
+            } else {
+                return Math.random() < 0.7 ? { action: 'pack', amount: 0 } : { action: 'chaal', amount: gameState.chaalAmount };
+            }
+        }
+        
         // Two player scenario - be more aggressive with strong cards
         if (gameState.playerCount === 2) {
             let actions = ['chaal', 'show'];
@@ -869,6 +931,8 @@ function executeGameAction(player, playerOption, amount) {
                 if (player.setIsActive) player.setIsActive(false);
                 isPack = true;
                 console.log('[BOT] Bot packed');
+                // Track the action for bot decision making
+                updatePlayerAction(player.getPlayerId(), 'pack');
                 break;
                 
             case "chaal":
@@ -883,6 +947,8 @@ function executeGameAction(player, playerOption, amount) {
                     player.setAutoCardSeenCounter(player.getAutoCardSeenCounter() + 1);
                 }
                 console.log(`[BOT] Bot ${playerOption} with amount ${amount}`);
+                // Track the action for bot decision making
+                updatePlayerAction(player.getPlayerId(), playerOption);
                 break;
                 
             case "show":
@@ -894,6 +960,8 @@ function executeGameAction(player, playerOption, amount) {
                 }
                 isShow = true;
                 console.log('[BOT] Bot show');
+                // Track the action for bot decision making
+                updatePlayerAction(player.getPlayerId(), 'show');
                 break;
                 
             case "sideShow":
@@ -908,6 +976,8 @@ function executeGameAction(player, playerOption, amount) {
                 }
                 isSideShow = true;
                 console.log('[BOT] Bot sideShow');
+                // Track the action for bot decision making
+                updatePlayerAction(player.getPlayerId(), 'sideShow');
                 break;
         }
 
@@ -1602,6 +1672,9 @@ function executeFallbackAction(player) {
             if (getPlayer) {
                 getPlayer.setTimeOutCounter(0)
                 getPlayer.setIsCardSeen(true)
+                // Track the action for bot decision making
+                updatePlayerAction(playerId, 'seeCards');
+                
                 if (activePlayer && getPreviousPlayer()) {
                     if (activePlayer.getPlayerId() == playerId || getPreviousPlayer().getPlayerId() == playerId) {
                         sendPlayerOption(activePlayer.getSocketId(), activePlayer.getIsCardSeen())
@@ -1692,29 +1765,39 @@ function executeFallbackAction(player) {
                     case "pack":
                         playerObject.setIsActive(false)
                         isPack = true
+                        // Track the action for bot decision making
+                        updatePlayerAction(playerId, 'pack');
                         break
                     case "chaal":
                         console.log("chaal")
                         playerObject.setPlayerAmount(playerObject.getPlayerAmount() - amount)
                         playerObject.setLoseChips(playerObject.getLoseChips() + amount)
+                        // Track the action for bot decision making
+                        updatePlayerAction(playerId, 'chaal');
                         break
                     case "blind":
                         console.log("blind")
                         playerObject.setPlayerAmount(playerObject.getPlayerAmount() - amount)
                         playerObject.setLoseChips(playerObject.getLoseChips() + amount)
                         playerObject.setAutoCardSeenCounter(playerObject.getAutoCardSeenCounter() + 1)
+                        // Track the action for bot decision making
+                        updatePlayerAction(playerId, 'blind');
                         break
                     case "show":
                         console.log("show")
                         isShow = true
                         playerObject.setPlayerAmount(playerObject.getPlayerAmount() - amount)
                         playerObject.setLoseChips(playerObject.getLoseChips() + amount)
+                        // Track the action for bot decision making
+                        updatePlayerAction(playerId, 'show');
                         break
                     case "sideShow":
                         console.log("sideShow")
                         playerObject.setPlayerAmount(playerObject.getPlayerAmount() - amount * 2)
                         playerObject.setLoseChips(playerObject.getLoseChips() + amount * 2)
                         isSideShow = true
+                        // Track the action for bot decision making
+                        updatePlayerAction(playerId, 'sideShow');
                         break
                 }
 
