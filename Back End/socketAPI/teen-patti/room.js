@@ -324,6 +324,11 @@ const Room = function (io, AllInOne) {
         botPlayer.setPlayerAmount(botChips);
         botPlayer.setPlayerPosition(emptyPosition.position);
         botPlayer.setIsActive(true);
+        
+        // Set bot game counter for auto-exit after 3-7 games
+        botPlayer.botGamesToPlay = Math.floor(Math.random() * (7 - 3 + 1)) + 3; // Random between 3-7
+        botPlayer.botGamesPlayed = 0;
+        console.log(`[BOT] ${botName} will play ${botPlayer.botGamesToPlay} games before leaving`);
 
         emptyPosition.isPlayerSitting = true;
         playerObjList.push(botPlayer);
@@ -344,6 +349,17 @@ const Room = function (io, AllInOne) {
             playerStatus: "Joined",
             lastBetAmount: 0
         }));
+        
+        // Emit bot game progress when joining
+        io.in(roomName).emit("botGameProgress", JSON.stringify({
+            playerId: botPlayer.getPlayerId(),
+            botName: botPlayer.getPlayerObject().name,
+            gamesPlayed: botPlayer.botGamesPlayed,
+            gamesToPlay: botPlayer.botGamesToPlay,
+            progress: `${botPlayer.botGamesPlayed}/${botPlayer.botGamesToPlay}`,
+            message: `${botPlayer.getPlayerObject().name} joined and will play ${botPlayer.botGamesToPlay} games`
+        }));
+        
         io.in(roomName).emit("joinRoomData", JSON.stringify({ roomName: roomName, playerData: platerSittingInRoom(getAllPlayerData()) }));
         io.in(roomName).emit("allActivePlayerData", JSON.stringify({ playerData: getAllPlayPlayer() }));
 
@@ -854,6 +870,17 @@ function executeBotAction(player, decision, delay) {
                 playerId: player.getPlayerId(),
                 timer: delay / 1000
             }));
+            
+            // Also emit bot game progress
+            if (player.botGamesPlayed !== undefined && player.botGamesToPlay !== undefined) {
+                io.in(roomName).emit("botGameProgress", JSON.stringify({
+                    playerId: player.getPlayerId(),
+                    botName: player.getPlayerObject().name,
+                    gamesPlayed: player.botGamesPlayed,
+                    gamesToPlay: player.botGamesToPlay,
+                    progress: `${player.botGamesPlayed}/${player.botGamesToPlay}`
+                }));
+            }
         }
 
         let botAction = decision.action;
@@ -1061,6 +1088,13 @@ function handleSpecialActions(player, playerOption, isShow, isPack, isSideShow) 
                     }
                 }
             }
+            
+            // After show action, continue game flow by calling sendOption
+            setTimeout(() => {
+                if (typeof sendOption === "function") {
+                    sendOption();
+                }
+            }, 2000); // Wait 2 seconds before continuing
         }
 
         // Handle pack action
@@ -2059,6 +2093,13 @@ function executeFallbackAction(player) {
                             })
                             winPlayerCalculation(getWinPlayer, getLosePlayer)
                         }
+                        
+                        // After show action, continue game flow
+                        setTimeout(() => {
+                            if (typeof sendOption === "function") {
+                                sendOption();
+                            }
+                        }, 2000); // Wait 2 seconds before continuing
                     }
                 }
                 if (isGameStartOrNot) {
@@ -2970,6 +3011,126 @@ function executeFallbackAction(player) {
             }
         }, 1000)
     }
+    
+    // Handle bot auto-exit after completing their allocated games
+    const handleBotGameExit = () => {
+        try {
+            console.log('[BOT] Checking for bots that need to exit after completing games...');
+            
+            // Get all bot players
+            const botPlayers = playerObjList.filter(isBotPlayer);
+            
+            botPlayers.forEach(botPlayer => {
+                if (botPlayer.botGamesPlayed !== undefined && botPlayer.botGamesToPlay !== undefined) {
+                    // Increment games played
+                    botPlayer.botGamesPlayed++;
+                    console.log(`[BOT] ${botPlayer.getPlayerObject().name} has played ${botPlayer.botGamesPlayed}/${botPlayer.botGamesToPlay} games`);
+                    
+                    // Check if bot should exit
+                    if (botPlayer.botGamesPlayed >= botPlayer.botGamesToPlay) {
+                        console.log(`[BOT] ${botPlayer.getPlayerObject().name} has completed ${botPlayer.botGamesPlayed} games, will exit now`);
+                        
+                        // Notify players that bot is leaving
+                        if (typeof io !== "undefined" && io && typeof roomName !== "undefined") {
+                            io.in(roomName).emit("botLeavingNotification", JSON.stringify({
+                                botName: botPlayer.getPlayerObject().name,
+                                gamesPlayed: botPlayer.botGamesPlayed,
+                                message: `${botPlayer.getPlayerObject().name} has completed ${botPlayer.botGamesPlayed} games and will leave the table shortly.`
+                            }));
+                        }
+                        
+                        // Schedule bot exit after a short delay
+                        setTimeout(() => {
+                            exitBotFromTable(botPlayer);
+                        }, 3000); // 3 second delay before exit
+                    }
+                }
+            });
+        } catch (err) {
+            console.error('[BOT] Error in handleBotGameExit:', err);
+        }
+    }
+    
+    // Function to exit bot from table
+    const exitBotFromTable = (botPlayer) => {
+        try {
+            if (!botPlayer || !botPlayer.getPlayerId) {
+                console.log('[BOT] Invalid bot player for exit');
+                return;
+            }
+            
+            console.log(`[BOT] Exiting ${botPlayer.getPlayerObject().name} from table after completing games`);
+            
+            // Remove bot from active players
+            botPlayer.setIsActive(false);
+            
+            // Emit bot exit event
+            if (typeof io !== "undefined" && io && typeof roomName !== "undefined") {
+                io.in(roomName).emit("playerLeft", JSON.stringify({ 
+                    playerId: botPlayer.getPlayerId(),
+                    reason: "Bot completed allocated games"
+                }));
+                
+                io.in(roomName).emit("playerRunningStatus", JSON.stringify({ 
+                    playerId: botPlayer.getPlayerId(), 
+                    playerStatus: "Left Table", 
+                    lastBetAmount: 0 
+                }));
+            }
+            
+            // Remove bot from player list
+            const botIndex = playerObjList.findIndex(p => p.getPlayerId() === botPlayer.getPlayerId());
+            if (botIndex !== -1) {
+                playerObjList.splice(botIndex, 1);
+                console.log(`[BOT] ${botPlayer.getPlayerObject().name} removed from player list`);
+            }
+            
+            // Free up the position
+            if (botPlayer.getPlayerPosition !== undefined) {
+                const position = botPlayer.getPlayerPosition();
+                if (position >= 0 && position < playerSitting.length) {
+                    playerSitting[position].isPlayerSitting = false;
+                    console.log(`[BOT] Position ${position} freed up`);
+                }
+            }
+            
+            // Update room data
+            if (typeof io !== "undefined" && io && typeof roomName !== "undefined") {
+                io.in(roomName).emit("joinRoomData", JSON.stringify({ 
+                    roomName: roomName, 
+                    playerData: platerSittingInRoom(getAllPlayerData()) 
+                }));
+                io.in(roomName).emit("allActivePlayerData", JSON.stringify({ 
+                    playerData: getAllPlayPlayer() 
+                }));
+            }
+            
+            // Check if room needs more players after bot exit
+            if (playerObjList.length < 2) {
+                console.log('[BOT] Room has less than 2 players after bot exit, starting waiting timer');
+                if (typeof onePlayerStartTimer === "function") {
+                    onePlayerStartTimer();
+                }
+            } else if (playerObjList.length >= 2 && !isGameStarted) {
+                console.log('[BOT] Room has enough players after bot exit, can start new game');
+                // Room can start a new game if conditions are met
+            }
+            
+            // Check if we need to add a new bot to maintain player count
+            if (playerObjList.length < 4 && countBots(playerObjList) < 2) {
+                console.log('[BOT] Room has space for more bots, considering adding new bot');
+                setTimeout(() => {
+                    if (playerObjList.length < 4 && countBots(playerObjList) < 2) {
+                        addBotPlayer(io, roomName, tableValueLimit, playerObjList, playerSitting, newPlayerJoinObj, roomIsFull);
+                    }
+                }, 5000); // Wait 5 seconds before adding new bot
+            }
+            
+        } catch (err) {
+            console.error('[BOT] Error in exitBotFromTable:', err);
+        }
+    }
+    
     const gameRestart = () => {
         console.log("--> Game Restart <--");
         isGameRunning = false
@@ -2985,6 +3146,10 @@ function executeFallbackAction(player) {
         setGameRound(gameRound + 1)
         io.in(roomName).emit("displayNewGameTimer", JSON.stringify({ status: true }))
         clearPlayerCard()
+        
+        // Check and handle bot auto-exit after games
+        handleBotGameExit();
+        
         onePlayerStartTimer()
         setTimeout(() => {
             nextRoundAddPlayer()
@@ -3382,8 +3547,14 @@ function executeFallbackAction(player) {
     const sendOption = () => {
         console.log("---------- Send Option --------- ")
         setActivePlayer(getNextPlayer())
-        sendPlayerOption(activePlayer.getSocketId(), activePlayer.getIsCardSeen())
-        startTimer()
+        
+        // Safety check: ensure there's an active player before proceeding
+        if (activePlayer) {
+            sendPlayerOption(activePlayer.getSocketId(), activePlayer.getIsCardSeen())
+            startTimer()
+        } else {
+            console.log("---------- No Active Player Found --------- ")
+        }
     }
     const getPreviousPlayer = () => {
         console.log("---------- FInd Get Previous Player --------- ")
@@ -3638,7 +3809,13 @@ function executeFallbackAction(player) {
     const startTimer = () => {
         let isGameEnd = false
         console.log("-- Start Timer --")
-        stopTimer()
+        
+        // Safety check: ensure timer is not already running
+        if (turnInterval) {
+            console.log("-- Timer already running, stopping first --")
+            stopTimer()
+        }
+        
         turnInterval = setInterval(() => {
             // time--
             time -= 0.15
@@ -3710,7 +3887,10 @@ function executeFallbackAction(player) {
     const stopTimer = () => {
         console.log("Stop Timer");
         // console.log('playerObjList----=-=-=-=-=-=-=-=-==--=-=-=-=-=-=-=>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>', playerObjList.length);
-        clearInterval(turnInterval)
+        if (turnInterval) {
+            clearInterval(turnInterval)
+            turnInterval = null
+        }
         time = defaultTime
     }
     this.turnTimerClearInterval = () => {
