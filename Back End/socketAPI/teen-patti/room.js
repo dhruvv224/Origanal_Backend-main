@@ -923,9 +923,7 @@ function executeFallbackAction(player) {
     }
 }
 
-function capitalizeFirstLetter(string) {
-    return string.charAt(0).toUpperCase() + string.slice(1);
-}
+
     this.connectPlayer = async (socket, playerId, playerObject, dealerPosition, invitePlayer = false, reconnection = false) => {
 
         console.log("- Player Chips -", playerObject.chips, "- Is Game Started -", isGameStarted)
