@@ -2881,170 +2881,240 @@ function executeFallbackAction(player) {
     }
     const gameStart = async () => {
         console.log("Is Game Started");
-        optionDisable = false
-        roomDataDelete = true
-        isGameStarted = true
-        isGameRunning = true
-        variationGameStart = false
-        onlyOnePlayerLeft = false
-        await common_helper.commonQuery(Room, "findOneAndUpdate", { room_name: roomName }, { $inc: { game_start_counter: 1 } })
-        tableAmount = 0
-        callAndResetFlag()
-        minimumBetAmount = tableValueLimit.boot_value
-        io.in(roomName).emit("gamePlayMessage", JSON.stringify({ message: common_message.NEW_ROUND }))
+        optionDisable = false;
+        roomDataDelete = true;
+        isGameStarted = true;
+        isGameRunning = true;
+        variationGameStart = false;
+        onlyOnePlayerLeft = false;
+        await common_helper.commonQuery(Room, "findOneAndUpdate", { room_name: roomName }, { $inc: { game_start_counter: 1 } });
+        tableAmount = 0;
+        callAndResetFlag();
+        minimumBetAmount = tableValueLimit.boot_value;
+        io.in(roomName).emit("gamePlayMessage", JSON.stringify({ message: common_message.NEW_ROUND }));
+
+        // Initialize bot game count for bots
+        _.forEach(playerObjList, (_player) => {
+            if (isBotPlayer(_player) && !_player.botGameCount) {
+                _player.botGameCount = 0;
+                _player.maxBotGames = Math.floor(Math.random() * (7 - 3 + 1)) + 3; // Random 3 to 7 games
+                console.log(`[BOT] Initialized maxBotGames: ${_player.maxBotGames} for ${_player.getPlayerId()}`);
+            }
+        });
+
         setTimeout(() => {
             if (getActivePlayersObject().length > 1) {
-                let getDealer
+                let getDealer;
                 if (!gameRestartDealerAlreadySelected) {
                     if (gameRound < 2) {
-                        console.log("First Game Round", gameRound)
+                        console.log("First Game Round", gameRound);
                         getDealer = _.find(playerObjList, (_player) => {
-                            return _player.getDealerPosition() == 1
-                        })
+                            return _player.getDealerPosition() == 1;
+                        });
                         if (!getDealer) {
-                            getDealer = playerObjList[0]
-                            getDealer.setDealerPosition(1)
+                            getDealer = playerObjList[0];
+                            getDealer.setDealerPosition(1);
                         }
                     } else {
-                        console.log("Next Game Round", gameRound)
+                        console.log("Next Game Round", gameRound);
                         const getCurrentDealer = _.find(playerObjList, (_player) => {
-                            return _player.getDealerPosition() == 1
-                        })
+                            return _player.getDealerPosition() == 1;
+                        });
                         if (getCurrentDealer) {
-                            getCurrentDealer.setDealerPosition(0)
-                            getDealer = getNextDealer(getCurrentDealer.getPlayerId())
-                            getDealer.setDealerPosition(1)
+                            getCurrentDealer.setDealerPosition(0);
+                            getDealer = getNextDealer(getCurrentDealer.getPlayerId());
+                            getDealer.setDealerPosition(1);
                         } else {
-                            getDealer = playerObjList[0]
-                            getDealer.setDealerPosition(1)
+                            getDealer = playerObjList[0];
+                            getDealer.setDealerPosition(1);
                         }
-                        nextGamePlayerDetails()
+                        nextGamePlayerDetails();
                     }
-                    setCurrentRoomDealer(getDealer)
-                    setActivePlayer(getDealer)
+                    setCurrentRoomDealer(getDealer);
+                    setActivePlayer(getDealer);
                 } else {
-                    getDealer = currentRoomDealer
-                    setActivePlayer(currentRoomDealer)
+                    getDealer = currentRoomDealer;
+                    setActivePlayer(currentRoomDealer);
                 }
 
-                const getPlayerTurnObj = getNextPlayer()
+                const getPlayerTurnObj = getNextPlayer();
 
-                playerGameStartBootAmount()
+                playerGameStartBootAmount();
                 setTimeout(() => {
-                    winnerDealerInSwitchTable = false
+                    winnerDealerInSwitchTable = false;
                     if (!onlyOnePlayerLeft) {
-                        gameStartLeftTimeChange = true
-                        setPlayersCard()
-                        io.in(roomName).emit("gamePlayMessage", JSON.stringify({ message: common_message.DISTRIBUTE_CARD }))
+                        gameStartLeftTimeChange = true;
+                        setPlayersCard();
+                        io.in(roomName).emit("gamePlayMessage", JSON.stringify({ message: common_message.DISTRIBUTE_CARD }));
+                        io.in(roomName).emit("cardDistribution", JSON.stringify({
+                            dealerId: getDealer.getPlayerId(),
+                            playerData: getAllPlayerData()
+                        }));
 
-                        console.log("-------- Card Distribution Time Dealer ID -> ", { dealerId: getDealer.getPlayerId() });
-                        io.in(roomName).emit("cardDistribution", JSON.stringify({ dealerId: getDealer.getPlayerId(), playerData: getAllPlayerData() }))
-
-                        // if (gameRestartDealerAlreadySelected) {
-                        //     console.log("-------- Card Distribution Time Dealer ID -&gt; ", { dealerId: getDealer.getPlayerId() });
-                        //     io.in(roomName).emit("cardDistribution", JSON.stringify({ dealerId: getDealer.getPlayerId(), playerData: getAllPlayerData() }))
-                        // } else {
-                        //     io.in(roomName).emit("cardDistribution", JSON.stringify({ playerData: getAllPlayerData() }))
-                        // }
-
-                        setActivePlayer(getPlayerTurnObj)
-                        console.log("-------- Active Player ID -> ", { activePlayerId: getPlayerTurnObj.getPlayerId() }, isBotPlayer(getPlayerTurnObj.getPlayerId()));
-                        if(isBotPlayer(activePlayer)) {
+                        setActivePlayer(getPlayerTurnObj);
+                        console.log("-------- Active Player ID -> ", {
+                            activePlayerId: getPlayerTurnObj.getPlayerId()
+                        }, isBotPlayer(getPlayerTurnObj));
+                        if (isBotPlayer(activePlayer)) {
                             console.log("Bot Player Turn");
                             botAutoPlayIfNeeded();
                         }
-                        setDealerPositionInDb(getDealer.getPlayerId(), roomName, gameRound)
+                        setDealerPositionInDb(getDealer.getPlayerId(), roomName, gameRound);
                         setTimeout(() => {
-                            if (!onlyOnePlayerLeft) {
-                                if (playerObjList.length > 1) {
-                                    sendPlayerOption(getPlayerTurnObj.getSocketId(), getDealer.getIsCardSeen())
-                                    startTimer()
-                                }
+                            if (!onlyOnePlayerLeft && playerObjList.length > 1) {
+                                sendPlayerOption(getPlayerTurnObj.getSocketId(), getDealer.getIsCardSeen());
+                                startTimer();
                             }
-                        }, 3000)
+                        }, 3000);
                     }
-                }, 1000)
+                }, 1000);
             } else {
-                isGameRunning = false
-                isGameStarted = false
+                isGameRunning = false;
+                isGameStarted = false;
             }
-        }, 1000)
-    }
+        }, 1000);
+    };
+
     const gameRestart = () => {
         console.log("--> Game Restart <--");
-        isGameRunning = false
-        isSlideShowSelected = false
-        activePlayer = undefined
-        tableValueLimit.boot_value = tableValueLimitReset
-        io.in(roomName).emit("roomLimit", JSON.stringify(tableValueLimit))
-        // callAutoRemoveReconnectionPlayer()
-        lowBalanceExit()
-        standUpCall()
-        roomWinLoseChips()
-        allDataClearGameRestart()
-        setGameRound(gameRound + 1)
-        io.in(roomName).emit("displayNewGameTimer", JSON.stringify({ status: true }))
-        clearPlayerCard()
-        onePlayerStartTimer()
+        isGameRunning = false;
+        isSlideShowSelected = false;
+        activePlayer = undefined;
+        tableValueLimit.boot_value = tableValueLimitReset;
+        io.in(roomName).emit("roomLimit", JSON.stringify(tableValueLimit));
+        lowBalanceExit();
+        standUpCall();
+        roomWinLoseChips();
+        allDataClearGameRestart();
+        setGameRound(gameRound + 1);
+        io.in(roomName).emit("displayNewGameTimer", JSON.stringify({ status: true }));
+        clearPlayerCard();
+        onePlayerStartTimer();
+
+        // Increment bot game count and check for removal
+        _.forEach(playerObjList, (_player) => {
+            if (isBotPlayer(_player)) {
+                _player.botGameCount++; // Increment game count
+                console.log(`[BOT] Game count for ${_player.getPlayerId()}: ${_player.botGameCount}/${_player.maxBotGames}`);
+            }
+        });
+
+        // Check if any bot needs to leave
+        const botsToRemove = _.filter(playerObjList, (_player) => {
+            return isBotPlayer(_player) && _player.botGameCount >= _player.maxBotGames;
+        });
+
+        if (botsToRemove.length > 0) {
+            console.log(`[BOT] Removing ${botsToRemove.length} bots due to max games reached`);
+            botsToRemove.forEach(async (bot) => {
+                console.log(`[BOT] Bot ${bot.getPlayerId()} leaving room after ${bot.botGameCount} games`);
+                // Update RoomPlayer to mark bot as not playing
+                await common_helper.commonQuery(RoomPlayer, "findOneAndUpdate",
+                    { player_data: bot.getPlayerObjectId(), room_name: roomName },
+                    { $set: { current_playing: false } }
+                );
+                // Log bot exit in PlayerHistory
+                await common_helper.commonQuery(PlayerHistory, "create", {
+                    player_id: bot.getPlayerId(),
+                    message: `${gameType} Room - ${roomName} and Bot Exit after ${bot.botGameCount} games`
+                });
+                // Remove bot from playerObjList
+                playerObjList.splice(playerObjList.indexOf(bot), 1);
+                // Emit playerLeft event
+                io.in(roomName).emit("playerLeft", JSON.stringify({
+                    playerId: bot.getPlayerId(),
+                    message: `${bot.getPlayerObject().name} has left the room`
+                }));
+                // Clear bot-specific properties
+                bot.botGameCount = undefined;
+                bot.maxBotGames = undefined;
+                bot.botRoundCounter = undefined;
+                bot.maxBotRounds = undefined;
+                // Clear bot's position
+                emptyPlayerPosition(bot.getPlayerPosition());
+            });
+
+            // Immediately close the room
+            console.log("[BOT] Closing room due to bot removal");
+            isGameRunning = false;
+            isGameStarted = false;
+            variationGameStart = false;
+            stopTimer();
+            stopSelectionTimer();
+            io.in(roomName).emit("stopPanel", JSON.stringify({ status: true }));
+            io.in(roomName).emit("gameStopped", JSON.stringify({
+                status: true,
+                message: "Room closed due to bot leaving"
+            }));
+            clearPlayerCard();
+            io.in(roomName).emit("findAnotherPlayer", JSON.stringify({
+                message: common_message.WAITING_ANOTHER
+            }));
+            deleteRoom();
+            return; // Exit gameRestart to prevent further processing
+        }
+
         setTimeout(() => {
-            nextRoundAddPlayer()
-            //Set Active
+            nextRoundAddPlayer();
+            // Set Active
             _.map(playerObjList, (_player) => {
-                _player.setIsActive(true)
-            })
+                _player.setIsActive(true);
+            });
             if (getActivePlayersObject().length > 1) {
-                variationGamePlay = false
+                variationGamePlay = false;
                 if (gameType == "Variation") {
-                    isGameRunning = false
+                    isGameRunning = false;
                 }
-                callAndResetFlag()
-                isGameFinished = true
-                io.in(roomName).emit("roomKing", JSON.stringify(getRoomKing()))
+                callAndResetFlag();
+                isGameFinished = true;
+                io.in(roomName).emit("roomKing", JSON.stringify(getRoomKing()));
                 setTimeout(() => {
-                    io.in(roomName).emit("newGame", JSON.stringify({ status: true }))
-                    clearPlayerCard()
-                    io.in(roomName).emit("joinRoomData", JSON.stringify({ roomName: roomName, playerData: platerSittingInRoom(getAllPlayerData()) }))
-                    io.in(roomName).emit("allActivePlayerData", JSON.stringify({ playerData: getAllPlayPlayer() }))
+                    io.in(roomName).emit("newGame", JSON.stringify({ status: true }));
+                    clearPlayerCard();
+                    io.in(roomName).emit("joinRoomData", JSON.stringify({
+                        roomName: roomName,
+                        playerData: platerSittingInRoom(getAllPlayerData())
+                    }));
+                    io.in(roomName).emit("allActivePlayerData", JSON.stringify({
+                        playerData: getAllPlayPlayer()
+                    }));
                     if (getActivePlayersObject().length > 1) {
                         setTimeout(() => {
                             if (getActivePlayersObject().length > 1) {
-                                this.setCardInRoom()
-                                tableAmount = 0
-                                // gameStart()
-
-                                //Game Type Wise Code
+                                this.setCardInRoom();
+                                tableAmount = 0;
                                 if (gameType == "TeenPatti" || gameType == "Private") {
                                     console.log("----------- Teen Patti Game Start -----------");
-                                    gameStart()
+                                    gameStart();
                                 } else if (gameType == "Variation") {
-                                    variationGameStart = true
-                                    gameRestartDealerAlreadySelected = true
-                                    //Set Variation Dealer
-                                    let getVariationDealer
+                                    variationGameStart = true;
+                                    gameRestartDealerAlreadySelected = true;
+                                    // Set Variation Dealer
+                                    let getVariationDealer;
                                     if (gameRound < 2) {
-                                        console.log("First Game Round", gameRound)
+                                        console.log("First Game Round", gameRound);
                                         getVariationDealer = _.find(playerObjList, (_player) => {
-                                            return _player.getDealerPosition() == 1
-                                        })
+                                            return _player.getDealerPosition() == 1;
+                                        });
                                         if (!getVariationDealer) {
-                                            getVariationDealer = playerObjList[0]
-                                            getVariationDealer.setDealerPosition(1)
+                                            getVariationDealer = playerObjList[0];
+                                            getVariationDealer.setDealerPosition(1);
                                         }
                                     } else {
-                                        console.log("Next Game Round", gameRound)
+                                        console.log("Next Game Round", gameRound);
                                         const getCurrentDealer = _.find(playerObjList, (_player) => {
-                                            return _player.getDealerPosition() == 1
-                                        })
+                                            return _player.getDealerPosition() == 1;
+                                        });
                                         if (getCurrentDealer) {
-                                            getCurrentDealer.setDealerPosition(0)
-                                            getVariationDealer = getNextDealer(getCurrentDealer.getPlayerId())
-                                            getVariationDealer.setDealerPosition(1)
+                                            getCurrentDealer.setDealerPosition(0);
+                                            getVariationDealer = getNextDealer(getCurrentDealer.getPlayerId());
+                                            getVariationDealer.setDealerPosition(1);
                                         } else {
-                                            getVariationDealer = playerObjList[0]
-                                            getVariationDealer.setDealerPosition(1)
+                                            getVariationDealer = playerObjList[0];
+                                            getVariationDealer.setDealerPosition(1);
                                         }
-                                        nextGamePlayerDetails()
-                                        setCurrentRoomDealer(getVariationDealer)
+                                        nextGamePlayerDetails();
+                                        setCurrentRoomDealer(getVariationDealer);
                                     }
 
                                     if (getVariationDealer) {
@@ -3053,46 +3123,64 @@ function executeFallbackAction(player) {
                                             name: getVariationDealer.getPlayerObject().name || "Guest",
                                             avatar: getVariationDealer.getPlayerObject().avatar_id,
                                             profilePic: getVariationDealer.getPlayerObject().profile_pic
-                                        }
-                                        variationCurrentDealer = getDealerData
-                                        io.in(roomName).emit("variationMessage", JSON.stringify({ message: getDealerData.name + " " + common_message.VARIATIONS_SELECTION, playerData: getDealerData }))
-                                        io.to(getVariationDealer.getSocketId()).emit("variationsSelectionData", JSON.stringify(cardVariations))
-                                        startSelectionTimer(getVariationDealer)
+                                        };
+                                        variationCurrentDealer = getDealerData;
+                                        io.in(roomName).emit("variationMessage", JSON.stringify({
+                                            message: getDealerData.name + " " + common_message.VARIATIONS_SELECTION,
+                                            playerData: getDealerData
+                                        }));
+                                        io.to(getVariationDealer.getSocketId()).emit("variationsSelectionData", JSON.stringify(cardVariations));
+                                        startSelectionTimer(getVariationDealer);
                                     } else {
-                                        socket.emit("errorOccurred", JSON.stringify({ status: false, message: "An Error Occurred. Please Help us understand the issue.", errorCode: "222" }))
+                                        socket.emit("errorOccurred", JSON.stringify({
+                                            status: false,
+                                            message: "An Error Occurred. Please Help us understand the issue.",
+                                            errorCode: "222"
+                                        }));
                                     }
                                 }
                             } else {
                                 setTimeout(() => {
-                                    onePlayerStartTimer()
-                                    isGameRunning = false
-                                    isGameStarted = false
-                                    clearPlayerCard()
-                                    console.log("-- Not Game Restart Under New Game--", { message: common_message.WAITING_ANOTHER })
-                                    io.in(roomName).emit("findAnotherPlayer", JSON.stringify({ message: common_message.WAITING_ANOTHER }))
-                                }, 1000)
+                                    onePlayerStartTimer();
+                                    isGameRunning = false;
+                                    isGameStarted = false;
+                                    clearPlayerCard();
+                                    console.log("-- Not Game Restart Under New Game--", {
+                                        message: common_message.WAITING_ANOTHER
+                                    });
+                                    io.in(roomName).emit("findAnotherPlayer", JSON.stringify({
+                                        message: common_message.WAITING_ANOTHER
+                                    }));
+                                }, 1000);
                             }
-                        }, 3000)
-
+                        }, 3000);
                     } else {
-                        onePlayerStartTimer()
-                        isGameRunning = false
-                        isGameStarted = false
-                        clearPlayerCard()
-                        console.log("-- Not Game Restart --", { message: common_message.WAITING_ANOTHER })
-                        io.in(roomName).emit("findAnotherPlayer", JSON.stringify({ message: common_message.WAITING_ANOTHER }))
+                        onePlayerStartTimer();
+                        isGameRunning = false;
+                        isGameStarted = false;
+                        clearPlayerCard();
+                        console.log("-- Not Game Restart --", {
+                            message: common_message.WAITING_ANOTHER
+                        });
+                        io.in(roomName).emit("findAnotherPlayer", JSON.stringify({
+                            message: common_message.WAITING_ANOTHER
+                        }));
                     }
-                }, 3000)
+                }, 3000);
             } else {
-                onePlayerStartTimer()
-                isGameRunning = false
-                isGameStarted = false
-                clearPlayerCard()
-                console.log("-- Not Game Restart --", { message: common_message.WAITING_ANOTHER })
-                io.in(roomName).emit("findAnotherPlayer", JSON.stringify({ message: common_message.WAITING_ANOTHER }))
+                onePlayerStartTimer();
+                isGameRunning = false;
+                isGameStarted = false;
+                clearPlayerCard();
+                console.log("-- Not Game Restart --", {
+                    message: common_message.WAITING_ANOTHER
+                });
+                io.in(roomName).emit("findAnotherPlayer", JSON.stringify({
+                    message: common_message.WAITING_ANOTHER
+                }));
             }
-        }, 4000)
-    }
+        }, 4000);
+    };
     const clearPlayerCard = () => {
         playerObjList.map((_player) => {
             _player.setCard([])
