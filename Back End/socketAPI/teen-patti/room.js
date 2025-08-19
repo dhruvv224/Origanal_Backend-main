@@ -3666,6 +3666,7 @@ function executeFallbackAction(player) {
         onePlayerInterval = setInterval(() => {
             onePlayerTime--;
             const humanPlayers = playerObjList.filter(p => !isBotPlayer(p));
+            console.log(humanPlayers.length === 1 ,"&&", playerObjList.length === 1 ,"&&", countBots(playerObjList) === 0 ,"&&", isGameRunning ,"&&", isGameStarted)
             if (humanPlayers.length === 1 && playerObjList.length === 1 && countBots(playerObjList) === 0 && isGameRunning && isGameStarted) {
                 console.log("Adding Bot Player due to only one human player left when onePlayerStartTimer is called");
                 addBotPlayer(io, roomName, tableValueLimit, playerObjList, playerSitting, newPlayerJoinObj, roomIsFull);
