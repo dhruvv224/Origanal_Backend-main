@@ -259,6 +259,9 @@ const Room = function (io, AllInOne) {
         "Karan", "Anjali", "Manish", "Ritu", "Suresh", "Meena", "Deepak", "Nisha", "Vivek", "Shweta"
     ];
 
+    // Room-level flag for first bot addition
+    let isFirstBotAddition = true;
+
     async function addBotPlayer(io, roomName, tableValueLimit, playerObjList, playerSitting, newPlayerJoinObj, roomIsFull) {
         console.log('[BOT] Checking if bot can be added...', roomName);
         if (roomIsFull || playerObjList.length + newPlayerJoinObj.length >= 5) {
@@ -329,6 +332,7 @@ const Room = function (io, AllInOne) {
         playerObjList.push(botPlayer);
 
         console.log(`[BOT] Added bot: ${botName} (${botId}) at position ${emptyPosition.position}`);
+        isFirstBotAddition = false; // Set flag to false after successful bot addition
 
         io.in(roomName).emit("newPlayerJoin", JSON.stringify({
             playerId: botPlayer.getPlayerId(),
@@ -3666,10 +3670,15 @@ function executeFallbackAction(player) {
         onePlayerInterval = setInterval(() => {
             onePlayerTime--;
             const humanPlayers = playerObjList.filter(p => !isBotPlayer(p));
-            console.log(humanPlayers.length === 1 ,"&&", playerObjList.length === 1 ,"&&", countBots(playerObjList) === 0 ,"&&", isGameRunning ,"&&", isGameStarted)
-            if (humanPlayers.length === 1 && playerObjList.length === 1 && countBots(playerObjList) === 0 && isGameRunning && isGameStarted) {
-                console.log("Adding Bot Player due to only one human player left when onePlayerStartTimer is called");
-                addBotPlayer(io, roomName, tableValueLimit, playerObjList, playerSitting, newPlayerJoinObj, roomIsFull);
+            if (humanPlayers.length === 1 && playerObjList.length === 1 && countBots(playerObjList) === 0) {
+                if (isFirstBotAddition || (isGameRunning && isGameStarted)) {
+                    console.log("Adding Bot Player due to only one human player left when onePlayerStartTimer is called");
+                    addBotPlayer(io, roomName, tableValueLimit, playerObjList, playerSitting, newPlayerJoinObj, roomIsFull);
+                } else {
+                    console.log(`[BOT] Skipped bot addition: isFirstBotAddition=${isFirstBotAddition}, humanPlayers=${humanPlayers.length}, playerObjList.length=${playerObjList.length}, botCount=${countBots(playerObjList)}, isGameRunning=${isGameRunning}, isGameStarted=${isGameStarted}`);
+                }
+            } else {
+                console.log(`[BOT] Skipped bot addition: humanPlayers=${humanPlayers.length}, playerObjList.length=${playerObjList.length}, botCount=${countBots(playerObjList)}, isGameRunning=${isGameRunning}, isGameStarted=${isGameStarted}`);
             }
             console.log("One Player Timer", onePlayerTime);
             if (playerObjList.length > 1 || playerObjList.length === 0) {
