@@ -265,8 +265,8 @@ const Room = function (io, AllInOne) {
             console.log('[BOT] Room is full, cannot add bot.');
             return;
         }
-        if (countBots(playerObjList) >= 2) {
-            console.log('[BOT] Already 2 bots present.');
+        if (countBots(playerObjList) >= 1) {
+            console.log('[BOT] Already 1 bot present, cannot add another.');
             return;
         }
 
@@ -373,7 +373,7 @@ const Room = function (io, AllInOne) {
             console.log('[BOT] Room is now full after adding bot.');
         }
 
-        // --- Auto-start game if bot addition brings player count to 2 or more ---
+        // Auto-start game if bot addition brings player count to 2 or more
         if (typeof isGameStarted !== 'undefined' && typeof gameStart === 'function') {
             const activePlayers = playerObjList.filter(p => p.getIsActive && p.getIsActive());
             if (!isGameStarted && activePlayers.length >= 2) {
@@ -3180,6 +3180,7 @@ function executeFallbackAction(player) {
             }
         }, 4000);
     };
+
     const clearPlayerCard = () => {
         playerObjList.map((_player) => {
             _player.setCard([])
@@ -3661,31 +3662,31 @@ function executeFallbackAction(player) {
     //One Player Left Timer
     const onePlayerStartTimer = () => {
         console.log("One Player Start Timer");
-        onePlayerStopTimer()
+        onePlayerStopTimer();
         onePlayerInterval = setInterval(() => {
-            onePlayerTime--
+            onePlayerTime--;
             const humanPlayers = playerObjList.filter(p => !isBotPlayer(p));
-            if (humanPlayers.length === 1 && playerObjList.length === 1) {
+            if (humanPlayers.length === 1 && playerObjList.length === 1 && countBots(playerObjList) === 0 && isGameRunning && isGameStarted) {
                 console.log("Adding Bot Player due to only one human player left when onePlayerStartTimer is called");
                 addBotPlayer(io, roomName, tableValueLimit, playerObjList, playerSitting, newPlayerJoinObj, roomIsFull);
             }
             console.log("One Player Timer", onePlayerTime);
-            if (playerObjList.length > 1 || playerObjList.length == 0) {
-                onePlayerStopTimer()
+            if (playerObjList.length > 1 || playerObjList.length === 0) {
+                onePlayerStopTimer();
             }
             if (onePlayerTime < 0) {
-                onePlayerStopTimer()
-                if (playerObjList.length == 1) {
+                onePlayerStopTimer();
+                if (playerObjList.length === 1) {
                     console.log("Only One Player Left");
-                    io.in(roomName).emit("onePlayerLeft", JSON.stringify({ status: true }))
+                    io.in(roomName).emit("onePlayerLeft", JSON.stringify({ status: true }));
                     if (playerObjList[0].getPlayerReconnection()) {
                         console.log("--------------------- Reconnection Player Auto left ---------------------");
-                        playerDisconnectInGamePlay("defaultDisconnect", playerObjList[0], playerObjList[0].getSocketId())
+                        playerDisconnectInGamePlay("defaultDisconnect", playerObjList[0], playerObjList[0].getSocketId());
                     }
                 }
             }
-        }, 1000)
-    }
+        }, 1000);
+    };
     const onePlayerStopTimer = () => {
         console.log("One Player Stop Timer");
         clearInterval(onePlayerInterval)
