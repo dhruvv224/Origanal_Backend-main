@@ -3562,38 +3562,38 @@ function executeFallbackAction(player) {
     }
 
     const setInRoomVariation = (variationType) => {
-        variationGamePlay = true
-        stopSelectionTimer()
-        setCurrentVariation(variationType)
+        variationGamePlay = true;
+        stopSelectionTimer();
+        setCurrentVariation(variationType);
         console.log("------------------------------------------ VariationType ------------------------------------------");
         console.log(variationType);
         console.log("------------------------------------------ VariationType ------------------------------------------");
-        if (currentVariation == "Joker") {
-            const myCard = Math.floor(Math.random() * card.length)
-            const myCard2 = Math.floor(Math.random() * card.length)
-            jokerCard = getSingleCardNickName(card[myCard])
-            jokerCard2 = getSingleCardNickName(card[myCard2])
-            io.in(roomName).emit("jokerCard", JSON.stringify({ jokerCard: card[myCard], jokerCard2: card[myCard2] }))
-            card.splice(myCard, 1)
+        if (variationType == "Joker") {
+            const myCard = Math.floor(Math.random() * card.length);
+            const myCard2 = Math.floor(Math.random() * card.length);
+            jokerCard = getSingleCardNickName(card[myCard]);
+            jokerCard2 = getSingleCardNickName(card[myCard2]);
+            io.in(roomName).emit("jokerCard", JSON.stringify({ jokerCard: card[myCard], jokerCard2: card[myCard2] }));
+            card.splice(myCard, 1);
         }
-        let currentVariationType = currentVariation
-        if (currentVariation == "Lowest Joker") {
-            currentVariationType = "Low Crad Joker"
-        } else if (currentVariation == "Highest Joker") {
-            currentVariationType = "High Card Joker"
-        } else if (currentVariation == "4x Boot") {
-            currentVariationType = "Big Deal (4x)"
-        } else if (currentVariation == "Muflis") {
-            currentVariationType = "Light Weight"
-        } else if (currentVariation == "Joker") {
-            currentVariationType = "Joker 2 Wild Card"
+        let currentVariationType = variationType;
+        if (variationType == "Lowest Joker") {
+            currentVariationType = "Low Crad Joker";
+        } else if (variationType == "Highest Joker") {
+            currentVariationType = "High Card Joker";
+        } else if (variationType == "4x Boot") {
+            currentVariationType = "Big Deal (4x)";
+        } else if (variationType == "Muflis") {
+            currentVariationType = "Light Weight";
+        } else if (variationType == "Joker") {
+            currentVariationType = "Joker 2 Wild Card";
         }
 
-        io.in(roomName).emit("currentVariation", JSON.stringify({ currentVariation: currentVariationType }))
+        io.in(roomName).emit("currentVariation", JSON.stringify({ currentVariation: currentVariationType }));
         setTimeout(() => {
-            gameStart()
-        }, 2000)
-    }
+            gameStart();
+        }, 2000);
+    };
     const callAutoRemoveReconnectionPlayer = () => {
         playerObjList.map((playerObject) => {
             if (playerObject.getTimeOutCounter() == 2) {
@@ -3815,19 +3815,37 @@ function executeFallbackAction(player) {
         clearInterval(turnInterval)
     }
 
-    //Variation Timer
     const startSelectionTimer = (getDealerData) => {
-        // console.log("- Start Variation Timer -");
-        selectionInterval = setInterval(() => {
-            selectionTime--
-            // console.log("Player Variation Selection Time --- " + selectionTime)
-            if (selectionTime < 0) {
-                const getRandomVariation = cardVariations[Math.floor(Math.random() * cardVariations.length)]
-                setInRoomVariation(getRandomVariation)
-            }
-            io.in(roomName).emit("playerSelectionVariationTimer", JSON.stringify({ selectionDefaultTime, selectionTime, playerId: getDealerData.getPlayerId() }))
-        }, 1000)
-    }
+        console.log(`[VARIATION] Starting variation selection for dealer: ${getDealerData.getPlayerId()}, isBot: ${isBotPlayer(getDealerData)}`);
+        stopSelectionTimer(); // Clear any existing timer
+
+        if (isBotPlayer(getDealerData)) {
+            // Bot dealer: Select random variation after 3-8 seconds
+            const delay = Math.floor(Math.random() * (8 - 3 + 1) + 3) * 1000; // Random delay between 3 and 8 seconds
+            console.log(`[VARIATION] Bot dealer selecting variation after ${delay / 1000} seconds`);
+            selectionInterval = setTimeout(() => {
+                const getRandomVariation = cardVariations[Math.floor(Math.random() * cardVariations.length)];
+                console.log(`[VARIATION] Bot selected variation: ${getRandomVariation}`);
+                setInRoomVariation(getRandomVariation);
+            }, delay);
+        } else {
+            // Human dealer: Use interval timer for selection
+            selectionInterval = setInterval(() => {
+                selectionTime--;
+                console.log(`[VARIATION] Human dealer selection time remaining: ${selectionTime}`);
+                if (selectionTime < 0) {
+                    const getRandomVariation = cardVariations[Math.floor(Math.random() * cardVariations.length)];
+                    console.log(`[VARIATION] Human dealer timer expired, selected variation: ${getRandomVariation}`);
+                    setInRoomVariation(getRandomVariation);
+                }
+                io.in(roomName).emit("playerSelectionVariationTimer", JSON.stringify({
+                    selectionDefaultTime,
+                    selectionTime,
+                    playerId: getDealerData.getPlayerId()
+                }));
+            }, 1000);
+        }
+    };
 
     const stopSelectionTimer = () => {
         // console.log("- Stop Variation Timer -");
