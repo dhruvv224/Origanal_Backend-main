@@ -2897,7 +2897,7 @@ function executeFallbackAction(player) {
         _.forEach(playerObjList, (_player) => {
             if (isBotPlayer(_player) && !_player.botGameCount) {
                 _player.botGameCount = 0;
-                _player.maxBotGames = Math.floor(Math.random() * (7 - 3 + 1)) + 3; // Random 3 to 7 games
+                _player.maxBotGames = Math.floor(Math.random() * (7 - 3 + 1)) + 3;
                 console.log(`[BOT] Initialized maxBotGames: ${_player.maxBotGames} for ${_player.getPlayerId()}`);
             }
         });
@@ -2991,50 +2991,51 @@ function executeFallbackAction(player) {
         clearPlayerCard();
         onePlayerStartTimer();
 
-        // Increment bot game count and check for removal
+        // Clear pending bot timers
         _.forEach(playerObjList, (_player) => {
-            if (isBotPlayer(_player)) {
-                _player.botGameCount++; // Increment game count
-                console.log(`[BOT] Game count for ${_player.getPlayerId()}: ${_player.botGameCount}/${_player.maxBotGames}`);
+            if (isBotPlayer(_player) && _player.botTimer) {
+                clearTimeout(_player.botTimer);
+                _player.botTimer = undefined;
+                console.log(`[BOT] Cleared pending timer for ${_player.getPlayerId()}`);
             }
         });
 
-        // Check if any bot needs to leave
-        const botsToRemove = _.filter(playerObjList, (_player) => {
-            return isBotPlayer(_player) && _player.botGameCount >= _player.maxBotGames;
+        // Increment bot game count and check for removal
+        const botsToRemove = [];
+        _.forEach(playerObjList, (_player) => {
+            if (isBotPlayer(_player)) {
+                _player.botGameCount++;
+                console.log(`[BOT] Game count for ${_player.getPlayerId()}: ${_player.botGameCount}/${_player.maxBotGames}`);
+                if (_player.botGameCount >= _player.maxBotGames) {
+                    botsToRemove.push(_player);
+                }
+            }
         });
 
         if (botsToRemove.length > 0) {
             console.log(`[BOT] Removing ${botsToRemove.length} bots due to max games reached`);
             botsToRemove.forEach(async (bot) => {
                 console.log(`[BOT] Bot ${bot.getPlayerId()} leaving room after ${bot.botGameCount} games`);
-                // Update RoomPlayer to mark bot as not playing
                 await common_helper.commonQuery(RoomPlayer, "findOneAndUpdate",
                     { player_data: bot.getPlayerObjectId(), room_name: roomName },
                     { $set: { current_playing: false } }
                 );
-                // Log bot exit in PlayerHistory
                 await common_helper.commonQuery(PlayerHistory, "create", {
                     player_id: bot.getPlayerId(),
                     message: `${gameType} Room - ${roomName} and Bot Exit after ${bot.botGameCount} games`
                 });
-                // Remove bot from playerObjList
                 playerObjList.splice(playerObjList.indexOf(bot), 1);
-                // Emit playerLeft event
                 io.in(roomName).emit("playerLeft", JSON.stringify({
                     playerId: bot.getPlayerId(),
                     message: `${bot.getPlayerObject().name} has left the room`
                 }));
-                // Clear bot-specific properties
                 bot.botGameCount = undefined;
                 bot.maxBotGames = undefined;
                 bot.botRoundCounter = undefined;
                 bot.maxBotRounds = undefined;
-                // Clear bot's position
                 emptyPlayerPosition(bot.getPlayerPosition());
             });
 
-            // Immediately close the room
             console.log("[BOT] Closing room due to bot removal");
             isGameRunning = false;
             isGameStarted = false;
@@ -3051,12 +3052,11 @@ function executeFallbackAction(player) {
                 message: common_message.WAITING_ANOTHER
             }));
             deleteRoom();
-            return; // Exit gameRestart to prevent further processing
+            return;
         }
 
         setTimeout(() => {
             nextRoundAddPlayer();
-            // Set Active
             _.map(playerObjList, (_player) => {
                 _player.setIsActive(true);
             });
@@ -3089,7 +3089,6 @@ function executeFallbackAction(player) {
                                 } else if (gameType == "Variation") {
                                     variationGameStart = true;
                                     gameRestartDealerAlreadySelected = true;
-                                    // Set Variation Dealer
                                     let getVariationDealer;
                                     if (gameRound < 2) {
                                         console.log("First Game Round", gameRound);
