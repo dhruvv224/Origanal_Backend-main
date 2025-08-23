@@ -2072,8 +2072,8 @@ function executeFallbackAction(player) {
                 io.in(roomName).emit("tableAmount", JSON.stringify({ tableAmount: tableAmount, playerData: getAllPlayerDetails() }))
 
                 // If active player is a bot, trigger bot auto play
-                if (isBotPlayer(activePlayer)) {
-                    console.log("---------- Bot Auto Play Triggered --------- ")
+                if (isBotPlayer(activePlayer)) { 
+                    console.log("---------- Bot Auto Play Triggered --------- ",isShow)
                     botAutoPlayIfNeeded();
                 }
             } else {
