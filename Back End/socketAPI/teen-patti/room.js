@@ -3817,7 +3817,6 @@ function executeFallbackAction(player) {
 
     const startSelectionTimer = (getDealerData) => {
         console.log(`[VARIATION] Starting variation selection for dealer: ${getDealerData.getPlayerId()}, isBot: ${isBotPlayer(getDealerData)}`);
-        stopSelectionTimer(); // Clear any existing timer
 
         if (isBotPlayer(getDealerData)) {
             // Bot dealer: Select random variation after 3-8 seconds
@@ -3827,8 +3826,11 @@ function executeFallbackAction(player) {
                 const getRandomVariation = cardVariations[Math.floor(Math.random() * cardVariations.length)];
                 console.log(`[VARIATION] Bot selected variation: ${getRandomVariation}`);
                 setInRoomVariation(getRandomVariation);
+                stopSelectionTimer(); // Stop the timer after bot variation selection
+                console.log(`[VARIATION] Bot timer stopped after selecting variation: ${getRandomVariation}`);
             }, delay);
         } else {
+            stopSelectionTimer(); // Clear any existing timer
             // Human dealer: Use interval timer for selection
             selectionInterval = setInterval(() => {
                 selectionTime--;
