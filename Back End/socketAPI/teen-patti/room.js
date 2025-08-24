@@ -2355,35 +2355,105 @@ function executeFallbackAction(player) {
         })
 
         socket.on("disconnect", async (reason) => {
-            console.log("---------- Disconnect --------- Reason :- ", reason, " Socket ID :- ", socket.id)
+            console.log("---------- Disconnect --------- Reason :- ", reason, " Socket ID :- ", socket.id);
 
             socket.leave(roomName, function (err) {
                 _.forEach(eventRemove, (_event) => {
-                    socket.removeAllListeners(`${_event}`)
-                })
-            })
+                    socket.removeAllListeners(`${_event}`);
+                });
+            });
 
             const getNewPlayerObj = _.find(newPlayerJoinObj, (_player) => {
-                return _player.socketId == socket.id
-            })
+                return _player.socketId == socket.id;
+            });
+
             if (getNewPlayerObj) {
-                console.log('heeellllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllll')
-                emptyPlayerPosition(getNewPlayerObj.position)
-                await common_helper.commonQuery(RoomPlayer, "findOneAndUpdate", { player_data: getNewPlayerObj.playerObject._id, room_name: roomName }, { $set: { current_playing: false } })
-                newPlayerJoinObj.splice(newPlayerJoinObj.indexOf(getNewPlayerObj), 1)
-                deleteRoom()
+                // Check if the disconnecting player is not a bot
+                if (!getNewPlayerObj.playerObject.isBot) {
+                    console.log(`[DISCONNECT] Human player ${getNewPlayerObj.playerObject.name} (${getNewPlayerObj.playerObject._id}) disconnected from newPlayerJoinObj`);
+                    // Remove human player
+                    emptyPlayerPosition(getNewPlayerObj.position);
+                    await common_helper.commonQuery(RoomPlayer, "findOneAndUpdate",
+                        { player_data: getNewPlayerObj.playerObject._id, room_name: roomName },
+                        { $set: { current_playing: false } }
+                    );
+                    newPlayerJoinObj.splice(newPlayerJoinObj.indexOf(getNewPlayerObj), 1);
+
+                    // Check for bots in playerObjList and remove them
+                    if (countBots(playerObjList) > 0) {
+                        console.log(`[DISCONNECT] Bots found in playerObjList, removing them`);
+                        const botsToRemove = playerObjList.filter(p => isBotPlayer(p));
+                        for (const bot of botsToRemove) {
+                            console.log(`[DISCONNECT] Removing bot ${bot.getPlayerId()} (${bot.getPlayerObject().name})`);
+                            await common_helper.commonQuery(RoomPlayer, "findOneAndUpdate",
+                                { player_data: bot.getPlayerObjectId(), room_name: roomName },
+                                { $set: { current_playing: false } }
+                            );
+                            await common_helper.commonQuery(PlayerHistory, "create", {
+                                player_id: bot.getPlayerId(),
+                                message: `${gameType} Room - ${roomName} and Bot Exit due to human player disconnect`
+                            });
+                            playerObjList.splice(playerObjList.indexOf(bot), 1);
+                            io.in(roomName).emit("playerLeft", JSON.stringify({
+                                playerId: bot.getPlayerId(),
+                                message: `${bot.getPlayerObject().name} has left the room`
+                            }));
+                            emptyPlayerPosition(bot.getPlayerPosition());
+                        }
+                    }
+
+                    deleteRoom();
+                } else {
+                    console.log(`[DISCONNECT] Bot player ${getNewPlayerObj.playerObject.name} disconnected from newPlayerJoinObj, no bot removal needed`);
+                    emptyPlayerPosition(getNewPlayerObj.position);
+                    await common_helper.commonQuery(RoomPlayer, "findOneAndUpdate",
+                        { player_data: getNewPlayerObj.playerObject._id, room_name: roomName },
+                        { $set: { current_playing: false } }
+                    );
+                    newPlayerJoinObj.splice(newPlayerJoinObj.indexOf(getNewPlayerObj), 1);
+                    deleteRoom();
+                }
             } else {
-                console.log('shittttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttt')
                 const playerObject = _.find(playerObjList, (_player) => {
-                    return _player.getSocketId() == socket.id
-                })
+                    return _player.getSocketId() == socket.id;
+                });
                 if (playerObject) {
-                    playerObject.setPlayerReconnection(true)
-                    console.log("Get Player Reconnection");
-                    console.log(playerObject.getPlayerReconnection());
+                    // Check if the disconnecting player is not a bot
+                    if (!isBotPlayer(playerObject)) {
+                        console.log(`[DISCONNECT] Human player ${playerObject.getPlayerId()} (${playerObject.getPlayerObject().name}) disconnected from playerObjList`);
+                        playerObject.setPlayerReconnection(true);
+                        console.log("Get Player Reconnection:", playerObject.getPlayerReconnection());
+
+                        // Check for bots in playerObjList and remove them
+                        if (countBots(playerObjList) > 0) {
+                            console.log(`[DISCONNECT] Bots found in playerObjList, removing them`);
+                            const botsToRemove = playerObjList.filter(p => isBotPlayer(p));
+                            for (const bot of botsToRemove) {
+                                console.log(`[DISCONNECT] Removing bot ${bot.getPlayerId()} (${bot.getPlayerObject().name})`);
+                                await common_helper.commonQuery(RoomPlayer, "findOneAndUpdate",
+                                    { player_data: bot.getPlayerObjectId(), room_name: roomName },
+                                    { $set: { current_playing: false } }
+                                );
+                                await common_helper.commonQuery(PlayerHistory, "create", {
+                                    player_id: bot.getPlayerId(),
+                                    message: `${gameType} Room - ${roomName} and Bot Exit due to human player disconnect`
+                                });
+                                playerObjList.splice(playerObjList.indexOf(bot), 1);
+                                io.in(roomName).emit("playerLeft", JSON.stringify({
+                                    playerId: bot.getPlayerId(),
+                                    message: `${bot.getPlayerObject().name} has left the room`
+                                }));
+                                emptyPlayerPosition(bot.getPlayerPosition());
+                            }
+                        }
+                    } else {
+                        console.log(`[DISCONNECT] Bot player ${playerObject.getPlayerId()} disconnected from playerObjList, no bot removal needed`);
+                        playerObject.setPlayerReconnection(true);
+                        console.log("Get Player Reconnection:", playerObject.getPlayerReconnection());
+                    }
                 }
             }
-        })
+        });
     }
     this.getAllPlayersObject = () => {
         return playerObjList
