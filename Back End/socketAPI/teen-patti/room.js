@@ -2431,7 +2431,7 @@ function executeFallbackAction(player) {
                         console.log("Get Player Reconnection:", playerObject.getPlayerReconnection());
 
                         // Check if any human players remain
-                        const humanPlayersInList = playerObjList.filter(p => !isBotPlayer(p)).length - 1; // Subtract the disconnecting player
+                        const humanPlayersInList = playerObjList.filter(p => !isBotPlayer(p)).length; // Count all humans, including disconnecting player
                         const humanPlayersInNewJoin = newPlayerJoinObj.filter(p => !p.playerObject.isBot).length;
                         console.log(`[DISCONNECT] Human players remaining: playerObjList=${humanPlayersInList}, newPlayerJoinObj=${humanPlayersInNewJoin}`);
 
