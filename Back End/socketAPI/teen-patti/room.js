@@ -2379,9 +2379,13 @@ function executeFallbackAction(player) {
                     );
                     newPlayerJoinObj.splice(newPlayerJoinObj.indexOf(getNewPlayerObj), 1);
 
-                    // Check for bots in playerObjList and remove them
-                    if (countBots(playerObjList) > 0) {
-                        console.log(`[DISCONNECT] Bots found in playerObjList, removing them`);
+                    // Check if any human players remain
+                    const humanPlayersInList = playerObjList.filter(p => !isBotPlayer(p)).length;
+                    const humanPlayersInNewJoin = newPlayerJoinObj.filter(p => !p.playerObject.isBot).length;
+                    console.log(`[DISCONNECT] Human players remaining: playerObjList=${humanPlayersInList}, newPlayerJoinObj=${humanPlayersInNewJoin}`);
+
+                    if (humanPlayersInList === 0 && humanPlayersInNewJoin === 0 && countBots(playerObjList) > 0) {
+                        console.log(`[DISCONNECT] No human players remain, removing bots from playerObjList`);
                         const botsToRemove = playerObjList.filter(p => isBotPlayer(p));
                         for (const bot of botsToRemove) {
                             console.log(`[DISCONNECT] Removing bot ${bot.getPlayerId()} (${bot.getPlayerObject().name})`);
@@ -2391,7 +2395,7 @@ function executeFallbackAction(player) {
                             );
                             await common_helper.commonQuery(PlayerHistory, "create", {
                                 player_id: bot.getPlayerId(),
-                                message: `${gameType} Room - ${roomName} and Bot Exit due to human player disconnect`
+                                message: `${gameType} Room - ${roomName} and Bot Exit due to no human players remaining`
                             });
                             playerObjList.splice(playerObjList.indexOf(bot), 1);
                             io.in(roomName).emit("playerLeft", JSON.stringify({
@@ -2400,6 +2404,8 @@ function executeFallbackAction(player) {
                             }));
                             emptyPlayerPosition(bot.getPlayerPosition());
                         }
+                    } else {
+                        console.log(`[DISCONNECT] Human players remain, keeping bots in playerObjList`);
                     }
 
                     deleteRoom();
@@ -2424,9 +2430,13 @@ function executeFallbackAction(player) {
                         playerObject.setPlayerReconnection(true);
                         console.log("Get Player Reconnection:", playerObject.getPlayerReconnection());
 
-                        // Check for bots in playerObjList and remove them
-                        if (countBots(playerObjList) > 0) {
-                            console.log(`[DISCONNECT] Bots found in playerObjList, removing them`);
+                        // Check if any human players remain
+                        const humanPlayersInList = playerObjList.filter(p => !isBotPlayer(p)).length - 1; // Subtract the disconnecting player
+                        const humanPlayersInNewJoin = newPlayerJoinObj.filter(p => !p.playerObject.isBot).length;
+                        console.log(`[DISCONNECT] Human players remaining: playerObjList=${humanPlayersInList}, newPlayerJoinObj=${humanPlayersInNewJoin}`);
+
+                        if (humanPlayersInList === 0 && humanPlayersInNewJoin === 0 && countBots(playerObjList) > 0) {
+                            console.log(`[DISCONNECT] No human players remain, removing bots from playerObjList`);
                             const botsToRemove = playerObjList.filter(p => isBotPlayer(p));
                             for (const bot of botsToRemove) {
                                 console.log(`[DISCONNECT] Removing bot ${bot.getPlayerId()} (${bot.getPlayerObject().name})`);
@@ -2436,7 +2446,7 @@ function executeFallbackAction(player) {
                                 );
                                 await common_helper.commonQuery(PlayerHistory, "create", {
                                     player_id: bot.getPlayerId(),
-                                    message: `${gameType} Room - ${roomName} and Bot Exit due to human player disconnect`
+                                    message: `${gameType} Room - ${roomName} and Bot Exit due to no human players remaining`
                                 });
                                 playerObjList.splice(playerObjList.indexOf(bot), 1);
                                 io.in(roomName).emit("playerLeft", JSON.stringify({
@@ -2445,6 +2455,8 @@ function executeFallbackAction(player) {
                                 }));
                                 emptyPlayerPosition(bot.getPlayerPosition());
                             }
+                        } else {
+                            console.log(`[DISCONNECT] Human players remain, keeping bots in playerObjList`);
                         }
                     } else {
                         console.log(`[DISCONNECT] Bot player ${playerObject.getPlayerId()} disconnected from playerObjList, no bot removal needed`);
