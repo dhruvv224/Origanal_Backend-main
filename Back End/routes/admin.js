@@ -767,8 +767,10 @@ adminLogin: async (req, res) => {
         }
     },
     adRewordUpdate: async (req, res) => {
-        const { id, chips, view } = req.body
-        const updateAdReward = await common_helper.commonQuery(AdReword, "findOneAndUpdate", { _id: id }, { chips, view })
+    const { id, chips, view, count } = req.body;
+    const updateFields = { chips, view };
+    if (typeof count !== 'undefined') updateFields.count = count;
+    const updateAdReward = await common_helper.commonQuery(AdReword, "findOneAndUpdate", { _id: id }, updateFields);
         if (updateAdReward.status == 1) {
             await common_helper.commonQuery(AdminLog, "create", { message: common_message.UPDATE_AD_REWARDED });
             res.status(config.OK_STATUS).json({ status: 1, message: common_message.UPDATE_AD_REWARDED });
