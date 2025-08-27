@@ -481,7 +481,7 @@ const Room = function (io, AllInOne) {
         console.log(`[BOT] Decision: ${botDecision.action}, amount: ${botDecision.amount}, round: ${activePlayer.botRoundCounter}/${activePlayer.maxBotRounds}, strategy: ${activePlayer.botStrategy}, personality: ${activePlayer.botPersonality}`);
 
         // Calculate delay (2-6 seconds)
-        const randomDelay = Math.floor(Math.random() * 4000) + 2000;
+        const randomDelay = Math.floor(Math.random() * 1000) + 2000;
 
         // Execute bot action after delay
         setTimeout(() => {
