@@ -1005,7 +1005,7 @@ function executeGameAction(player, playerOption, amount) {
                 minimumBetAmount = amount;
             }
         }
-
+        console.log('current minimumBetAmount:', minimumBetAmount);
         // Emit events
         if (typeof io !== "undefined" && io && typeof roomName !== "undefined") {
             let liveStatus = playerOption === "pack" ? "Packed" : capitalizeFirstLetter(playerOption);
@@ -1022,7 +1022,7 @@ function executeGameAction(player, playerOption, amount) {
                 lastBetAmount: sendAmount 
             }));
         }
-
+        console.log(`[BOT] Emitted playerBetAmount and playerRunningStatus for ${playerOption}`);
         // Handle special actions (show, pack, sideShow)
         handleSpecialActions(player, playerOption, isShow, isPack, isSideShow);
 
@@ -1046,6 +1046,7 @@ function executeGameAction(player, playerOption, amount) {
 
 function handleSpecialActions(player, playerOption, isShow, isPack, isSideShow) {
     try {
+        console.log(`[BOT] Handling special action: ${playerOption}`);
         // Handle show action
         if (isShow && typeof isGameStartOrNot !== "undefined") {
             isGameStartOrNot = true;
