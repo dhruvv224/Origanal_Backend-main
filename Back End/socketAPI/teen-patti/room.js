@@ -51,7 +51,7 @@ const Room = function (io, AllInOne) {
     let roomIsFull = false
     let winnerDeclaration = false
     let isGameStartOrNot = false
-    let onlyOnePlayerLeft = false
+    let onlyOnePlayerLeft = false   
     let gameStartLeftTimeChange = false
     let isRoomDelete = false
     let isGameRunning = false
@@ -963,9 +963,10 @@ function executeGameAction(player, playerOption, amount) {
                     player.setLoseChips(player.getLoseChips() + amount);
                 }
                 isShow = true;
-                console.log('[BOT] Bot show');
+                console.log('[BOT] Bot show',player);
                 // Track the action for bot decision making
                 updatePlayerAction(player.getPlayerId(), 'show');
+                console.log('[BOT] Bot show action processed');
                 break;
                 
             case "sideShow":
