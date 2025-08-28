@@ -1056,6 +1056,73 @@ function handleSpecialActions(player, playerOption, isShow, isPack, isSideShow) 
             if (typeof gameType !== "undefined" && gameType === "Variation" && typeof currentVariation !== "undefined") {
                 // Variation game logic (same as original)
                 // ... (keep original variation logic)
+                isGameStartOrNot = true
+                stopTimer()
+                console.log("Final Show Win");
+
+                if (gameType == "Variation" && currentVariation == "Lowest Joker" || currentVariation == "Highest Joker" || currentVariation == "1947" || currentVariation == "Joker") {
+                    const getPlayerCardArray = getAllActivePlayerCard()
+                    let winTeenPatti = []
+                    switch (currentVariation) {
+                        case "Lowest Joker":
+                            _.map(getPlayerCardArray, (_playerData) => {
+                                const getWhoIsWin = lowestJoker(_playerData)
+                                winTeenPatti.push({ playerId: _playerData.playerId, name: getWhoIsWin.name, score: getWhoIsWin.score })
+                            })
+                            break;
+                        case "Highest Joker":
+                            _.map(getPlayerCardArray, (_playerData) => {
+                                const getWhoIsWin = highCardJoker(_playerData)
+                                winTeenPatti.push({ playerId: _playerData.playerId, name: getWhoIsWin.name, score: getWhoIsWin.score })
+                            })
+                            break;
+                        case "1947":
+                            _.map(getPlayerCardArray, (_playerData) => {
+                                const getWhoIsWin = ak47(_playerData)
+                                winTeenPatti.push({ playerId: _playerData.playerId, name: getWhoIsWin.name, score: getWhoIsWin.score })
+                            })
+                            break;
+                        case "Joker":
+                            _.map(getPlayerCardArray, (_playerData) => {
+                                const getWhoIsWin = jokerWin(_playerData)
+                                winTeenPatti.push({ playerId: _playerData.playerId, name: getWhoIsWin.name, score: getWhoIsWin.score })
+                            })
+                            break;
+                        default:
+                            _.map(getPlayerCardArray, (_playerData) => {
+                                const getWhoIsWin = lowestJoker(_playerData)
+                                winTeenPatti.push({ playerId: _playerData.playerId, name: getWhoIsWin.name, score: getWhoIsWin.score })
+                            })
+                            break;
+                    }
+
+                    if (winTeenPatti.length > 1) {
+                        if (winTeenPatti[0].score == winTeenPatti[1].score) {
+                            const getWinPlayer = _.find(winTeenPatti, (_player) => {
+                                return _player.playerId != playerObject.getPlayerId()
+                            })
+                            const getLosePlayer = _.find(winTeenPatti, (_player) => {
+                                return _player.playerId == playerObject.getPlayerId()
+                            })
+                            winPlayerCalculation(getWinPlayer, getLosePlayer, true)
+                        } else {
+                            storePlayerVariationCard = []
+                            const getWinPlayer = getWhoIsWin(getPlayerCardArray)
+                            const getLosePlayer = _.find(getPlayerCardArray, (_player) => {
+                                return _player.playerId != getWinPlayer.playerId
+                            })
+                            winPlayerCalculation(getWinPlayer, getLosePlayer, true)
+                        }
+                    } else { }
+                } else {
+
+                    const getPlayerCardArray = getAllActivePlayerCard()
+                    const getWinPlayer = getWhoIsWin(getPlayerCardArray)
+                    const getLosePlayer = _.find(getPlayerCardArray, (_player) => {
+                        return _player.playerId != getWinPlayer.playerId
+                    })
+                    winPlayerCalculation(getWinPlayer, getLosePlayer)
+                }
             } else {
                 // Regular game logic
                 if (typeof getAllActivePlayerCard === "function" && typeof getWhoIsWin === "function") {
@@ -1100,7 +1167,9 @@ function handleSpecialActions(player, playerOption, isShow, isPack, isSideShow) 
                     }
 
                     setTimeout(() => {
+                        console.log("[BOT] Restarting game after pack win");
                         if (typeof gameRestart === "function") gameRestart();
+                        console.log("[BOT] Game restarted");
                     }, 4000);
                 }
             } else {
