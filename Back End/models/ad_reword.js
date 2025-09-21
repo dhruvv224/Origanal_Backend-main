@@ -3,7 +3,7 @@ const mongoose = require('mongoose')
 const adRewordSchema = mongoose.Schema({
     chips: Number,
     view: String,
-    count: { type: Number, default: 0 }
+    count: { type: Boolean, default: false }
 }, {
     versionKey: false
 })
