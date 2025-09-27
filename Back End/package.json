@@ -32,7 +32,6 @@
     "nodemailer": "^6.6.3",
     "socket.io": "^4.8.1",
     "swagger-ui-express": "^4.1.6",
-    "teenpattisolver": "^1.1.6",
     "twilio": "^3.64.0"
   },
   "devDependencies": {
