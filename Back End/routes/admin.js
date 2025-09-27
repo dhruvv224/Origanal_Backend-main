@@ -39,8 +39,8 @@ const LudoRoomPlayer = require('../models/ludo/ludo_room_player');
 const RoomLimitStatus = require('../models/room_limit_status');
 const DeveloperLog = require('../models/developer_log');
 const AdsStatus = require('../models/ads_status');
-
-
+const sgMail = require("@sendgrid/mail");
+sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 const transporter = nodemailer.createTransport({
     pool: true,
     host: 'smtp.gmail.com',
@@ -133,38 +133,42 @@ module.exports = {
     //         res.status(config.OK_STATUS).json({ status: 0, message: common_message.ADMIN_ERROR });
     //     }
     // },
-adminLogin: async (req, res) => {
-    const { email, password } = req.body;
+ adminLogin: async (req, res) => {
+        const { email, password } = req.body;
 
-    const getAdmin = await common_helper.commonQuery(Admin, "findOne", { email });
+        const getAdmin = await common_helper.commonQuery(Admin, "findOne", { email });
 
-    console.log("-----------------Admin ---------------------------");
-    console.log(getAdmin);
-    console.log("-----------------Admin ---------------------------");
+        console.log("-----------------Admin ---------------------------");
+        console.log(getAdmin);
+        console.log("-----------------Admin ---------------------------");
 
-    if (getAdmin.status == 1 && getAdmin.data) {
-        const isMatch = await bcrypt.compare(password, getAdmin.data.password);
+        // --- CHECK ADMIN EXISTENCE AND STATUS ---
+        if (getAdmin.status == 1 && getAdmin.data) {
+            const isMatch = await bcrypt.compare(password, getAdmin.data.password);
 
-        if (isMatch) {
-            const verification_number = Math.floor(1000 + Math.random() * 9000);
+            if (isMatch) {
+                const verification_number = Math.floor(1000 + Math.random() * 9000);
 
-            const updated_data = await common_helper.commonQuery(
-                Admin,
-                "findOneAndUpdate",
-                { _id: getAdmin.data._id },
-                { token: verification_number },
-                "_id"
-            );
+                // --- UPDATE ADMIN TOKEN ---
+                const updated_data = await common_helper.commonQuery(
+                    Admin,
+                    "findOneAndUpdate",
+                    { _id: getAdmin.data._id },
+                    { token: verification_number },
+                    "_id"
+                );
 
-            if (updated_data.status != 1) {
-                res.status(config.OK_STATUS).json({
-                    status: 0,
-                    message: common_message.ADMIN_ERROR,
-                });
-            } else {
-                const emailData = {
-                    from: process.env.SENDER_EMAIL,
-                    to: email,
+                if (updated_data.status != 1) {
+                    return res.status(config.OK_STATUS).json({
+                        status: 0,
+                        message: common_message.ADMIN_ERROR,
+                    });
+                }
+
+                // --- SEND VERIFICATION EMAIL USING SENDGRID ---
+                const msg = {
+                    to: email, // Recipient email
+                    from: process.env.SENDER_EMAIL, // Sender email (must be a verified SendGrid sender)
                     subject: "Admin Verification",
                     html: `<h1>Verification Code</h1>
                         <hr>
@@ -178,36 +182,42 @@ adminLogin: async (req, res) => {
 
                 console.log('verification_number ---------- : ', verification_number);
 
-                transporter.sendMail(emailData, async (err, info) => {
-                    if (err || !info) {
-                        console.log(err);
-                        res.status(config.OK_STATUS).json({ message: "Error occurred while sending mail." });
-                    } else {
-                        await common_helper.commonQuery(AdminLog, "create", {
-                            message: `Verification code sent to ${email} successfully.`,
-                        });
+                try {
+                    // SendGrid returns a promise, so we use await
+                    await sgMail.send(msg);
 
-                        res.status(config.OK_STATUS).json({
-                            status: 1,
-                            message: `Verification code sent to ${email} successfully.`,
-                            updated_data,
-                        });
-                    }
+                    // --- SUCCESS LOGGING AND RESPONSE ---
+                    await common_helper.commonQuery(AdminLog, "create", {
+                        message: `Verification code sent to ${email} successfully.`,
+                    });
+
+                    res.status(config.OK_STATUS).json({
+                        status: 1,
+                        message: `Verification code sent to ${email} successfully.`,
+                        updated_data,
+                    });
+                } catch (error) {
+                    // --- ERROR HANDLING FOR EMAIL SENDING ---
+                    console.error("SendGrid Email Error:", error.response ? error.response.body : error);
+                    // Log to DB that login failed due to email issue if needed, then respond to client
+                    res.status(config.OK_STATUS).json({ message: "Error occurred while sending verification mail." });
+                }
+
+            } else {
+                // Invalid Password
+                res.status(config.OK_STATUS).json({
+                    status: 0,
+                    message: "Invalid email or password.",
                 });
             }
         } else {
+            // Admin Not Found or commonQuery Error
             res.status(config.OK_STATUS).json({
                 status: 0,
-                message: "Invalid email or password.",
+                message: common_message.ADMIN_ERROR,
             });
         }
-    } else {
-        res.status(config.OK_STATUS).json({
-            status: 0,
-            message: common_message.ADMIN_ERROR,
-        });
     }
-}
 ,
  createAdmin : async (req, res) => {
     try {
