@@ -42,16 +42,15 @@ const AdsStatus = require('../models/ads_status');
 
 
 const transporter = nodemailer.createTransport({
-    pool: true,
-    host: 'smtp.gmail.com',
-    port: 687,
-    secure: false,
-    requireTLS: true,
+    host: "smtp.gmail.com",
+    port: 587,      // correct port for TLS
+    secure: false,  // use STARTTLS
     auth: {
         user: process.env.SENDER_EMAIL,
-        pass: process.env.SENDER_PASSWORD
+        pass: process.env.SENDER_APP_PASSWORD // use App Password if 2FA enabled
     }
 });
+
 
 cron.schedule('0 1 * * *', () => {
     // cron.schedule('00 26 14 * * * *', async () => {
