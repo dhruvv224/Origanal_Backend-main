@@ -7,7 +7,8 @@ const Room = function (io, AllInOne) {
     const common_message = require('../../helper/common_message');
     const eventRemove = require('./event')
     const _ = require('lodash')
-    let teenPattiScore = require("teenpattisolver");
+    let teenPattiScore = require("./helper/teenpattisolver");
+    
     let teenPattiWinner = require("./winnerLogic/index")
     let cards = require("./winnerLogic/cards")
 

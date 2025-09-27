@@ -18,6 +18,8 @@
     "express-validator": "^6.11.0",
     "http-errors": "~1.6.3",
     "image-to-base64": "^2.2.0",
+    "js-combinatorics": "^2.1.2",
+    
     "jsonwebtoken": "^8.5.1",
     "lodash": "^4.17.21",
     "log4js": "^6.3.0",
@@ -31,8 +33,6 @@
     "nodejs-base64": "^2.0.0",
     "nodemailer": "^6.6.3",
     "socket.io": "^4.8.1",
-      "teenpattisolver": "file:libs/teenpattisolver"
-,
     "swagger-ui-express": "^4.1.6",
     "twilio": "^3.64.0"
   },

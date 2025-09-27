@@ -54,7 +54,7 @@ let mainCard = [
 ]
 
 
-var teenPattiScore = require("teenpattisolver");
+var teenPattiScore = require("./helper/teenpattisolver");
 
 const getNickName = (card) => {
     const getNickNameCard = card.map((_card) => {
