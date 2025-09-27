@@ -44,7 +44,7 @@ const AdsStatus = require('../models/ads_status');
 const transporter = nodemailer.createTransport({
     pool: true,
     host: 'smtp.gmail.com',
-    port: 587,
+    port: 687,
     secure: false,
     requireTLS: true,
     auth: {
