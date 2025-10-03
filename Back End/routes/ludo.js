@@ -139,56 +139,18 @@ module.exports = {
         }
     },
     checkLudoServerPassword: async (req, res) => {
-    try {
         const { password } = req.body;
-
-        if (!password || password.trim() === "") {
-            return res.status(config.BAD_REQUEST).json({ status: 0, message: "Password is required." });
-        }
-
-        // 1. Get ALL passwords from the database
-        const getAllPasses = await common_helper.commonQuery(PrivatePassword, "find", {});
-        
-        if (getAllPasses.status !== 1 || !getAllPasses.data || getAllPasses.data.length === 0) {
-            // No passwords found or an error occurred
-            if (getAllPasses.status === 1) {
-                return res.status(config.OK_STATUS).json({ status: 0, message: "No server password configured." });
-            }
-            return res.status(config.INTERNAL_SERVER_ERROR).json({ status: 0, message: common_message.COMMON_ERROR });
-        }
-
-        // 2. Loop through all retrieved passwords and check the hash
-        let isPasswordValid = false;
-        let matchedPasswordData = null;
-
-        for (const passDoc of getAllPasses.data) {
-            // Assuming common_helper.checkBcryptPassword compares the raw password to the hash
-            const hashResult = await common_helper.checkBcryptPassword(password, passDoc.password);
-
-            if (hashResult.status === 1) {
-                isPasswordValid = true;
-                // Optionally store the document data for logging/response
-                matchedPasswordData = passDoc; 
-                break; // Stop checking once a match is found
+        const getPass = await common_helper.commonQuery(PrivatePassword, "findOne", {});
+        if (getPass.status == 1) {
+            const hashPassword = await common_helper.checkBcryptPassword(password, getPass.data.password);
+            if (hashPassword.status == 1) {
+                return res.status(config.OK_STATUS).json(hashPassword);
+            } else {
+                return res.status(config.OK_STATUS).json({ status: 0, message: "Invalid Password" });
             }
         }
-
-        // 3. Return the result
-        if (isPasswordValid) {
-            // Return success. You can customize the success response based on checkBcryptPassword's output
-            return res.status(config.OK_STATUS).json({ 
-                status: 1, 
-                message: "Password verified successfully.",
-                // Optionally return data related to the matched password
-                // matched_id: matchedPasswordData._id 
-            });
-        } else {
-            // 4. No match found after checking all passwords
-            return res.status(config.OK_STATUS).json({ status: 0, message: "Invalid Password" });
+        else {
+            return res.status(config.OK_STATUS).json({ status: 0, message: common_message.COMMON_ERROR });
         }
-
-    } catch (error) {
-        console.error("checkLudoServerPassword Error:", error);
-        return res.status(config.INTERNAL_SERVER_ERROR).json({ status: 0, message: "Server error." });
     }
 }
