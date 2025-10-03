@@ -75,6 +75,7 @@ for (var i = 0; i < 2; i++) {
 
 
 var teenPattiScore = require("./helper/teenpattisolver");
+
 var _ = require("lodash")
 
 const getNickName = (card) => {
