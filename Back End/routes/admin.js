@@ -1726,39 +1726,49 @@ module.exports = {
             return res.status(config.BAD_REQUEST).json({ status: 0, message: common_message.COMMON_ERROR });
         }
     },
-    createPrivatePassword : async (req, res) => {
+   createPrivatePassword: async (req, res) => {
     try {
-        const { password } = req.body;
+        // 1. Change the Input: Expect an array of passwords
+        const { passwords } = req.body; // Expecting: { passwords: ["pass1", "pass2", "pass3"] }
 
-        if (!password || password.trim() === "") {
-            return res.status(config.BAD_REQUEST).json({ status: 0, message: "Password is required." });
+        // Input validation for the array
+        if (!passwords || !Array.isArray(passwords) || passwords.length === 0) {
+            return res.status(config.BAD_REQUEST).json({ status: 0, message: "An array of passwords is required." });
         }
 
-        // Check if a private password already exists
-        const existingPass = await common_helper.commonQuery(PrivatePassword, "findOne", {});
-        if (existingPass.status === 1 && existingPass.data) {
-            return res.status(config.BAD_REQUEST).json({
-                status: 0,
-                message: "Private password already exists. You can only update it."
+        // Filter out any empty or invalid passwords in the array
+        const validPasswords = passwords.filter(p => p && typeof p === 'string' && p.trim() !== "");
+
+        if (validPasswords.length === 0) {
+            return res.status(config.BAD_REQUEST).json({ status: 0, message: "No valid passwords provided." });
+        }
+        
+        // 2. Remove the Existence Check (Since you want multiple)
+        // (Existing code for checking single password existence is removed here)
+
+        // Prepare the data for insertion
+        const documentsToInsert = [];
+        for (const password of validPasswords) {
+            // Hash the password
+            const hashedPassword = await bcrypt.hash(password, 10);
+
+            documentsToInsert.push({
+                password: hashedPassword,
+                created_at: new Date()
             });
         }
-
-        // Hash the password
-        const hashedPassword = await bcrypt.hash(password, 10);
-
-        const create = await common_helper.commonQuery(PrivatePassword, "create", {
-            password: hashedPassword,
-            created_at: new Date()
-        });
+        
+        // 3. Process and Save Multiple: Use insertMany for efficiency
+        const create = await common_helper.commonQuery(PrivatePassword, "insertMany", documentsToInsert);
 
         if (create.status === 1) {
             await common_helper.commonQuery(AdminLog, "create", {
-                message: "Private password created successfully."
+                message: `${documentsToInsert.length} private password(s) created successfully.`
             });
 
             return res.status(config.OK_STATUS).json({
                 status: 1,
-                message: "Private password created successfully."
+                message: `${documentsToInsert.length} private password(s) created successfully.`
             });
         } else {
             return res.status(config.BAD_REQUEST).json({ status: 0, message: common_message.COMMON_ERROR });
