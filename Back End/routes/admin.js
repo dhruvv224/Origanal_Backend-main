@@ -776,19 +776,48 @@ module.exports = {
             res.status(config.BAD_REQUEST).json({ status: 0, message: common_message.COMMON_ERROR })
         }
     },
-    adRewordUpdate: async (req, res) => {
-    const { id, chips, view, count } = req.body;
-    const updateFields = { chips, view };
-if (typeof count !== 'undefined') {
-  updateFields.count = (count === true || count === 'true');
-}    const updateAdReward = await common_helper.commonQuery(AdReword, "findOneAndUpdate", { _id: id }, updateFields);
-        if (updateAdReward.status == 1) {
-            await common_helper.commonQuery(AdminLog, "create", { message: common_message.UPDATE_AD_REWARDED });
-            res.status(config.OK_STATUS).json({ status: 1, message: common_message.UPDATE_AD_REWARDED });
-        } else {
-            res.status(config.BAD_REQUEST).json({ status: 0, message: common_message.COMMON_ERROR });
-        }
-    },
+  adRewordUpdate: async (req, res) => {
+  try {
+    const { id, chips, view, count, is_active } = req.body;
+
+    // Build update fields
+    const updateFields = {
+      chips,
+      view,
+      is_active, // new field
+    };
+
+    // Ensure count is always stored as integer (default 0 if not provided)
+    if (typeof count !== "undefined") {
+      updateFields.count = parseInt(count, 10) || 0;
+    }
+
+    const updateAdReward = await common_helper.commonQuery(
+      AdReword,
+      "findOneAndUpdate",
+      { _id: id },
+      updateFields
+    );
+
+    if (updateAdReward.status == 1) {
+      await common_helper.commonQuery(AdminLog, "create", {
+        message: common_message.UPDATE_AD_REWARDED,
+      });
+      res
+        .status(config.OK_STATUS)
+        .json({ status: 1, message: common_message.UPDATE_AD_REWARDED });
+    } else {
+      res
+        .status(config.BAD_REQUEST)
+        .json({ status: 0, message: common_message.COMMON_ERROR });
+    }
+  } catch (error) {
+    res
+      .status(config.BAD_REQUEST)
+      .json({ status: 0, message: error.message || common_message.COMMON_ERROR });
+  }
+},
+
     dailyReword: async (req, res) => {
         const getDailyReword = await common_helper.commonQuery(DailyReword, "find", {})
         if (getDailyReword.status == 1) {
