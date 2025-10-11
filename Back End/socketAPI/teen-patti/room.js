@@ -256,8 +256,45 @@ const Room = function (io, AllInOne) {
     }
     // List of bot names to choose from
     const BOT_NAMES = [
-        "Ravi", "Priya", "Amit", "Sneha", "Rahul", "Neha", "Vikas", "Pooja", "Arjun", "Simran",
-        "Karan", "Anjali", "Manish", "Ritu", "Suresh", "Meena", "Deepak", "Nisha", "Vivek", "Shweta"
+        // Indian Names
+        "Ravi Kumar", "Priya Sharma", "Amit Patel", "Sneha Reddy", "Rahul Mehta", "Neha Singh", "Vikas Nair", "Pooja Das",
+        "Arjun Verma", "Simran Kaur", "Karan Joshi", "Anjali Iyer", "Manish Chauhan", "Ritu Bansal", "Suresh Pillai",
+        "Meena Desai", "Deepak Ghosh", "Nisha Yadav", "Vivek Chatterjee", "Shweta Dutta", "Rohit Malhotra", "Divya Nanda",
+        "Sanjay Thakur", "Kavita Rao", "Ankit Goel", "Preeti Menon", "Abhishek Gupta", "Rashmi Bhattacharya", "Nitin Kapoor",
+        "Isha Bedi", "Gaurav Krishnan", "Aishwarya Nambiar", "Mohit Shah", "Tina Paul", "Ajay Chhabra", "Mitali Sinha",
+        "Ramesh Prasad", "Kiran Basu", "Rohini Naidu", "Ashok Jaiswal", "Payal Dey", "Vineet Varma", "Sonali Gaur",
+        "Harish Banerjee", "Lavanya Reddy", "Tarun Shetty", "Monika Arora", "Rajesh Kulkarni", "Komal Choudhary",
+        "Aman Rathore", "Rachna Tiwari", "Sandeep Vora", "Juhi Dubey", "Lokesh Solanki", "Pallavi Mahajan",
+        "Sameer Grover", "Jaya Ahuja", "Hemant Lal", "Megha Dasgupta", "Sagar Talwar", "Bhavana Joshi",
+        "Dev Narayan", "Rekha Pillai", "Kunal Bhat", "Chitra Soni", "Aditya Patil", "Sonia Fernandes",
+        "Sourabh Shinde", "Namita Kurup", "Naveen Joseph", "Anusha Thomas", "Tushar Roy", "Geeta Abraham",
+        "Nikhil Pinto", "Swati Dias", "Vinay Ramaswamy", "Alka Daniel", "Rajiv Goyal", "Seema Pillai",
+        "Aakash Fernandes", "Madhuri Nair", "Arnav D’Costa", "Manju D’Souza", "Dinesh Kurian", "Lata Iqbal",
+        "Harsha Fernandes", "Deepti Varghese", "Yogesh Salian", "Trupti Rane", "Suraj Saldanha", "Tanvi Jacob",
+
+        // International Names
+        "John Smith", "Emily Johnson", "Michael Brown", "Sarah Davis", "David Wilson", "Jessica Miller", "Daniel Taylor", "Laura Anderson",
+        "James Thomas", "Sophia Moore", "William Jackson", "Olivia Martin", "Ethan White", "Ava Thompson", "Alexander Garcia", "Emma Martinez",
+        "Benjamin Rodriguez", "Isabella Lopez", "Lucas Gonzalez", "Mia Perez", "Henry Kim", "Grace Lee", "Samuel Park", "Chloe Nguyen",
+        "Liam Harris", "Ella Clark", "Jacob Lewis", "Amelia Robinson", "Noah Walker", "Hannah Hall", "Jack Allen", "Charlotte Young",
+        "Matthew King", "Abigail Scott", "Nathan Green", "Sophie Baker", "Logan Adams", "Victoria Nelson", "Joshua Carter", "Natalie Perez",
+        "Sebastian Rivera", "Luna Torres", "Leo Flores", "Camila Morales", "Adam Cooper", "Julia Reed", "Ryan Stewart", "Zoe Murphy",
+        "Joseph Hughes", "Layla Long", "Aaron Foster", "Ella Ward", "Christopher Cox", "Lily Morgan", "Andrew Bailey", "Madison Bell",
+
+        // European Names
+        "Luca Rossi", "Sofia Romano", "Matteo Bianchi", "Giulia Conti", "Leon Schneider", "Emma Fischer", "Jonas Weber", "Mia Wagner",
+        "Arthur Dupont", "Camille Laurent", "Pierre Moreau", "Chloé Bernard", "Oliver Jensen", "Freja Nielsen", "Erik Larsen", "Ida Madsen",
+        "Tomáš Novák", "Lucie Dvořáková", "Jakub Horák", "Anna Svobodová", "Mateusz Kowalski", "Zuzanna Nowak", "Marek Lewandowski", "Julia Zielinska",
+
+        // Asian & Middle Eastern Names
+        "Hiroshi Tanaka", "Yuki Nakamura", "Akira Yamamoto", "Sakura Suzuki", "Jin Park", "Minseo Kim", "Soojin Lee", "Daehyun Choi",
+        "Wei Chen", "Li Na", "Zhang Wei", "Mei Lin", "Omar Al-Farooq", "Fatima Zahra", "Hassan Ali", "Aisha Khalid",
+        "Ahmed Mansour", "Leila Hussein", "Rashid Khan", "Nadia Rahman", "Ali Reza", "Sara Jafari",
+
+        // Latin & African Names
+        "Carlos Mendoza", "Lucia Fernandez", "Diego Ramirez", "Valentina Ortiz", "Miguel Santos", "Gabriela Torres",
+        "Juan Castillo", "Paula Rojas", "Andres Herrera", "Maria Delgado", "Kwame Mensah", "Ama Boateng", "Kofi Owusu", "Efua Addo",
+        "Chinedu Okafor", "Ngozi Nwosu", "Samuel Abebe", "Liya Tesfaye"
     ];
 
     // Room-level flag for first bot addition
@@ -285,15 +322,27 @@ const Room = function (io, AllInOne) {
         if (botPlayerData) {
             botId = botPlayerData.player_id || botPlayerData.email || ('BOT_' + Date.now());
             botName = BOT_NAMES[Math.floor(Math.random() * BOT_NAMES.length)];
-            botChips = botPlayerData.chips || (tableValueLimit.boot_value * 10);
-            botAvatar = botPlayerData.avatar_id || 1;
+
+            const potMax = tableValueLimit.pot_max;
+            const min = potMax * 0.6;
+            const max = potMax * 0.9;
+            botChips = Math.floor(Math.random() * (max - min + 1) + min);
+
+            // botChips = botPlayerData.chips || (tableValueLimit.boot_value * 10);
+            botAvatar = botPlayerData.avatar_id || Math.floor(Math.random() * 10);
             botProfilePic = botPlayerData.profile_pic || '';
             botIsStatic = true;
         } else {
             botId = 'BOT_' + Date.now();
             botName = BOT_NAMES[Math.floor(Math.random() * BOT_NAMES.length)];
-            botChips = tableValueLimit.boot_value * 10;
-            botAvatar = 1;
+
+            const potMax = tableValueLimit.pot_max;
+            const min = potMax * 0.6;
+            const max = potMax * 0.9;
+            botChips = Math.floor(Math.random() * (max - min + 1) + min);
+
+            // botChips = tableValueLimit.boot_value * 10;
+            botAvatar = Math.floor(Math.random() * 10);
             botProfilePic = '';
         }
 
