@@ -2551,6 +2551,12 @@ function executeFallbackAction(player) {
                     if (!isBotPlayer(playerObject)) {
                         console.log(`[DISCONNECT] Human player ${playerObject.getPlayerId()} (${playerObject.getPlayerObject().name}) disconnected from playerObjList`);
                         playerObject.setPlayerReconnection(true);
+                        // Ensure DB state is updated immediately so `current_playing` doesn't remain true
+                        try {
+                            await common_helper.commonQuery(RoomPlayer, "findOneAndUpdate", { player_data: playerObject.getPlayerObjectId(), room_name: roomName }, { $set: { current_playing: false } })
+                        } catch (err) {
+                            console.error('Error updating RoomPlayer.current_playing on disconnect:', err);
+                        }
                         console.log("Get Player Reconnection:", playerObject.getPlayerReconnection());
 
                         // Check if any human players remain, including the disconnecting player
@@ -2992,10 +2998,12 @@ function executeFallbackAction(player) {
                     return _player.socketId == socketId
                 })
                 if (newPlayerIndex >= 0) {
+                    // capture playerId before removing from array
+                    const leftPlayerId = newPlayerJoinObj[newPlayerIndex].playerId
                     emptyPlayerPosition(newPlayerJoinObj[newPlayerIndex].position)
                     await common_helper.commonQuery(RoomPlayer, "findOneAndUpdate", { player_data: newPlayerJoinObj[newPlayerIndex].playerObject._id, room_name: roomName }, { $set: { current_playing: false } })
                     newPlayerJoinObj.splice(newPlayerIndex, 1)
-                    io.in(roomName).emit("playerLeft", JSON.stringify({ playerId: newPlayerJoinObj[newPlayerIndex].playerId }))
+                    io.in(roomName).emit("playerLeft", JSON.stringify({ playerId: leftPlayerId }))
                     // Krunal
                     console.log("-------- Player Sitting ----else----")
                     console.log(playerSitting)
