@@ -18,7 +18,7 @@ const roomSchema = new mongoose.Schema({
     },
     current_playing: {
         type: Boolean,
-        default: true,
+        default: false,
     },
     table_limit: {
         type: Object,

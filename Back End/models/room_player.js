@@ -34,7 +34,7 @@ const roomPlayerSchema = mongoose.Schema({
     }],
     current_playing: {
         type: Boolean,
-        default: true,
+        default: false,
     }
 }, {
     versionKey: false
