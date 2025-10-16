@@ -567,6 +567,7 @@ function updatePlayerAction(playerId, action) {
 }
 
 function makeBotDecision(player, gameState) {
+    let decision = null; // store bot decision
     try {
         // Increment round counter for tracking
         player.botRoundCounter++;
@@ -574,263 +575,248 @@ function makeBotDecision(player, gameState) {
         // Handle insufficient balance
         if (gameState.botBalance < gameState.blindAmount) {
             console.log('[BOT] Insufficient balance, packing');
-            return { action: 'pack', amount: 0 };
+            decision = { action: 'pack', amount: 0 };
         }
 
         // Handle end game scenario (max rounds reached)
-        if (player.botRoundCounter >= player.maxBotRounds) {
+        else if (player.botRoundCounter >= player.maxBotRounds) {
             // Consider pot size - if pot is large, be more aggressive
             let potSizeFactor = gameState.tableAmount / (gameState.potMax || 1000);
             let adjustedCardStrength = player.cardStrength || 0.5;
-            
+
             if (potSizeFactor > 0.7) {
-                // Large pot - be more aggressive
                 adjustedCardStrength += 0.1;
             }
-            
 
-            
             if (gameState.playerCount === 2) {
-                // In heads up, show or pack based on adjusted card strength
-                // Special case: bot can show if other player has acted and bot has low cards
                 let otherPlayerHasActed = false;
-                if (typeof gameState.otherPlayerAction !== 'undefined' && 
+                if (typeof gameState.otherPlayerAction !== 'undefined' &&
                     ['show', 'chaal', 'blind', 'pack'].includes(gameState.otherPlayerAction)) {
                     otherPlayerHasActed = true;
                 }
-                
-                // If other player has acted and bot has low cards, allow show action
+
                 if (otherPlayerHasActed && adjustedCardStrength <= 0.4) {
                     if (Math.random() < 0.6) {
-                        return { action: 'show', amount: gameState.chaalAmount };
+                        decision = { action: 'show', amount: gameState.chaalAmount };
                     }
                 }
-                
-                // Default behavior for 2 players
-                if (adjustedCardStrength > 0.6) {
-                    return { action: 'show', amount: gameState.chaalAmount };
-                } else {
-                    return Math.random() < 0.7 ? { action: 'pack', amount: 0 } : { action: 'chaal', amount: gameState.chaalAmount };
+
+                if (!decision) {
+                    if (adjustedCardStrength > 0.6) {
+                        decision = { action: 'show', amount: gameState.chaalAmount };
+                    } else {
+                        decision = Math.random() < 0.7
+                            ? { action: 'pack', amount: 0 }
+                            : { action: 'chaal', amount: gameState.chaalAmount };
+                    }
                 }
             } else {
-                // With more players, consider pot size
                 if (adjustedCardStrength > 0.8 || potSizeFactor > 0.8) {
-                    return { action: 'chaal', amount: gameState.chaalAmount };
+                    decision = { action: 'chaal', amount: gameState.chaalAmount };
                 } else {
-                    return Math.random() < 0.9 ? { action: 'pack', amount: 0 } : { action: 'chaal', amount: gameState.chaalAmount };
+                    decision = Math.random() < 0.9
+                        ? { action: 'pack', amount: 0 }
+                        : { action: 'chaal', amount: gameState.chaalAmount };
                 }
             }
         }
 
-        // BLIND PLAY LOGIC - Improved strategy
-        if (!gameState.isCardSeen) {
-            // Check if bot is dealer (more aggressive in blind play)
+        // BLIND PLAY LOGIC
+        else if (!gameState.isCardSeen) {
             let isDealer = player.getDealerPosition && player.getDealerPosition() === 1;
-            let blindAggressiveness = isDealer ? 0.9 : 0.8; // Dealer is more aggressive
-            
-            // Force blind play for first 2 rounds (more aggressive)
+            let blindAggressiveness = isDealer ? 0.9 : 0.8;
+
             if (player.botRoundCounter <= 2) {
                 console.log(`[BOT] Playing blind round ${player.botRoundCounter}/2 (dealer: ${isDealer})`);
-                // Higher chance to blind if dealer, lower chance to see cards early
                 if (Math.random() < blindAggressiveness) {
-                    return { action: 'blind', amount: gameState.blindAmount };
+                    decision = { action: 'blind', amount: gameState.blindAmount };
                 } else {
                     console.log('[BOT] Seeing cards early in blind rounds');
-                    return { action: 'seeCards', amount: 0 };
+                    decision = { action: 'seeCards', amount: 0 };
                 }
-            }
-            
-            // After 2 blind rounds, strongly encourage seeing cards
-            if (player.botRoundCounter === 3) {
-                // Consider game round - later rounds encourage seeing cards more
+            } else if (player.botRoundCounter === 3) {
                 let seeCardsProbability = 0.9;
-                if (gameState.gameRound > 3) {
-                    seeCardsProbability += 0.05; // More likely to see cards in later game rounds
-                }
-                
+                if (gameState.gameRound > 3) seeCardsProbability += 0.05;
+
                 if (Math.random() < seeCardsProbability) {
                     console.log('[BOT] Seeing cards after blind rounds');
-                    return { action: 'seeCards', amount: 0 };
+                    decision = { action: 'seeCards', amount: 0 };
                 } else {
                     console.log('[BOT] Continuing blind play');
-                    return { action: 'blind', amount: gameState.blindAmount };
+                    decision = { action: 'blind', amount: gameState.blindAmount };
                 }
-            }
-            
-            // If still blind after 3 rounds, force seeing cards
-            if (player.botRoundCounter === 4) {
+            } else if (player.botRoundCounter === 4) {
                 console.log('[BOT] Forcing card visibility after 4 rounds');
-                return { action: 'seeCards', amount: 0 };
-            }
-            
-            // If somehow still blind, occasionally see cards
-            if (Math.random() < 0.6) {
-                return { action: 'seeCards', amount: 0 };
+                decision = { action: 'seeCards', amount: 0 };
             } else {
-                return { action: 'blind', amount: gameState.blindAmount };
-            }
-        }
-
-        // SEEN CARDS LOGIC - Now with card strength evaluation
-        if (player.cardStrength === undefined) {
-            // Calculate card strength if not already done
-            player.cardStrength = evaluateCardStrength(player.getCard());
-            console.log(`[BOT] Card strength calculated: ${player.cardStrength}`);
-        }
-
-        // Early rounds after seeing cards - consider personality and risk tolerance
-        if (player.botRoundCounter <= 3) {
-            let baseChaalProbability = 0.7;
-            
-            // Adjust based on personality
-            if (player.botPersonality === 'bluffer') {
-                baseChaalProbability += 0.2; // Bluffers are more aggressive
-            } else if (player.botPersonality === 'tight') {
-                baseChaalProbability -= 0.2; // Tight players are more conservative
-            }
-            
-            // Adjust based on risk tolerance
-            baseChaalProbability += (player.botRiskTolerance - 0.5) * 0.3;
-            
-            if (player.cardStrength > 0.7) {
-                // Strong cards - be aggressive
-                return { action: 'chaal', amount: gameState.chaalAmount };
-            } else if (player.cardStrength > 0.4) {
-                // Medium cards - moderate play with personality influence
-                return Math.random() < baseChaalProbability ? { action: 'chaal', amount: gameState.chaalAmount } : { action: 'pack', amount: 0 };
-            } else {
-                // Weak cards - pack or bluff based on personality
-                let bluffProbability = 0.3;
-                if (player.botPersonality === 'bluffer') bluffProbability += 0.3;
-                if (player.botRiskTolerance > 0.6) bluffProbability += 0.2;
-                
-                return Math.random() < bluffProbability ? { action: 'chaal', amount: gameState.chaalAmount } : { action: 'pack', amount: 0 };
-            }
-        }
-
-        // Check if there are enough players for show/sideShow actions
-        if (gameState.playerCount < 3) {
-            // Special case for 2 players: bot can show if other player has shown/chaal/blind/pack and bot has low cards
-            if (gameState.playerCount === 2) {
-                // Check if other player has taken action (show, chaal, blind, pack)
-                let otherPlayerHasActed = false;
-                if (typeof gameState.otherPlayerAction !== 'undefined' && 
-                    ['show', 'chaal', 'blind', 'pack'].includes(gameState.otherPlayerAction)) {
-                    otherPlayerHasActed = true;
+                if (Math.random() < 0.6) {
+                    decision = { action: 'seeCards', amount: 0 };
+                } else {
+                    decision = { action: 'blind', amount: gameState.blindAmount };
                 }
-                
-                // If other player has acted and bot has low cards, allow show action
-                if (otherPlayerHasActed && player.cardStrength <= 0.4) {
-                    if (Math.random() < 0.6) {
-                        return { action: 'show', amount: gameState.chaalAmount };
+            }
+        }
+
+        // SEEN CARDS LOGIC
+        else {
+            if (player.cardStrength === undefined) {
+                player.cardStrength = evaluateCardStrength(player.getCard());
+                console.log(`[BOT] Card strength calculated: ${player.cardStrength}`);
+            }
+
+            if (player.botRoundCounter <= 3) {
+                let baseChaalProbability = 0.7;
+
+                if (player.botPersonality === 'bluffer') baseChaalProbability += 0.2;
+                else if (player.botPersonality === 'tight') baseChaalProbability -= 0.2;
+
+                baseChaalProbability += (player.botRiskTolerance - 0.5) * 0.3;
+
+                if (player.cardStrength > 0.7) {
+                    decision = { action: 'chaal', amount: gameState.chaalAmount };
+                } else if (player.cardStrength > 0.4) {
+                    decision = Math.random() < baseChaalProbability
+                        ? { action: 'chaal', amount: gameState.chaalAmount }
+                        : { action: 'pack', amount: 0 };
+                } else {
+                    let bluffProbability = 0.3;
+                    if (player.botPersonality === 'bluffer') bluffProbability += 0.3;
+                    if (player.botRiskTolerance > 0.6) bluffProbability += 0.2;
+
+                    decision = Math.random() < bluffProbability
+                        ? { action: 'chaal', amount: gameState.chaalAmount }
+                        : { action: 'pack', amount: 0 };
+                }
+            } else if (gameState.playerCount < 3) {
+                if (gameState.playerCount === 2) {
+                    let otherPlayerHasActed = false;
+                    if (typeof gameState.otherPlayerAction !== 'undefined' &&
+                        ['show', 'chaal', 'blind', 'pack'].includes(gameState.otherPlayerAction)) {
+                        otherPlayerHasActed = true;
+                    }
+
+                    if (otherPlayerHasActed && player.cardStrength <= 0.4) {
+                        if (Math.random() < 0.6) {
+                            decision = { action: 'show', amount: gameState.chaalAmount };
+                        }
                     }
                 }
-            }
-            
-            // Default behavior for fewer than 3 players: only allow pack or chaal actions
-            if (player.cardStrength > 0.8) {
-                return { action: 'chaal', amount: gameState.chaalAmount };
-            } else {
-                return Math.random() < 0.7 ? { action: 'pack', amount: 0 } : { action: 'chaal', amount: gameState.chaalAmount };
-            }
-        }
-        
-        // Two player scenario - be more aggressive with strong cards
-        if (gameState.playerCount === 2) {
-            let actions = ['chaal', 'show'];
-            if (gameState.nextPlayerCardSeen) {
-                actions.push('sideShow');
-            }
-            
-            // Strong cards - more likely to show
-            if (player.cardStrength > 0.8) {
-                if (Math.random() < 0.6) {
-                    return { action: 'show', amount: gameState.chaalAmount };
-                }
-            }
-            
-            let selectedAction = actions[Math.floor(Math.random() * actions.length)];
-            let amount = selectedAction === 'sideShow' ? gameState.blindAmount : gameState.chaalAmount;
-            
-            return { action: selectedAction, amount: amount };
-        }
 
-        // Multi-player scenario with card strength consideration and personality
-        if (player.botStrategy === 'aggressive') {
-            // Aggressive: Consider card strength and personality
-            if (player.cardStrength > 0.8) {
-                // Very strong cards - raise aggressively
-                let raiseMultiplier = 2.0;
-                if (player.botPersonality === 'bluffer') raiseMultiplier += 0.5;
-                if (player.botRiskTolerance > 0.6) raiseMultiplier += 0.3;
-                
-                let raiseAmount = Math.min(Math.floor(gameState.chaalAmount * raiseMultiplier), gameState.maxBetAmount || gameState.chaalAmount * 3);
-                return { action: 'chaal', amount: raiseAmount };
-            } else if (player.cardStrength > 0.6) {
-                // Strong cards - raise moderately
-                let raiseMultiplier = 1.5;
-                if (player.botPersonality === 'bluffer') raiseMultiplier += 0.3;
-                
-                let raiseAmount = Math.min(Math.floor(gameState.chaalAmount * raiseMultiplier), gameState.maxBetAmount || gameState.chaalAmount * 2);
-                return { action: 'chaal', amount: raiseAmount };
-            } else if (player.cardStrength > 0.4) {
-                // Medium cards - chaal
-                return { action: 'chaal', amount: gameState.chaalAmount };
+                if (!decision) {
+                    if (player.cardStrength > 0.8) {
+                        decision = { action: 'chaal', amount: gameState.chaalAmount };
+                    } else {
+                        decision = Math.random() < 0.7
+                            ? { action: 'pack', amount: 0 }
+                            : { action: 'chaal', amount: gameState.chaalAmount };
+                    }
+                }
+            } else if (gameState.playerCount === 2) {
+                let actions = ['chaal', 'show'];
+                if (gameState.nextPlayerCardSeen) actions.push('sideShow');
+
+                if (player.cardStrength > 0.8 && Math.random() < 0.6) {
+                    decision = { action: 'show', amount: gameState.chaalAmount };
+                } else {
+                    let selectedAction = actions[Math.floor(Math.random() * actions.length)];
+                    let amount = selectedAction === 'sideShow'
+                        ? gameState.blindAmount
+                        : gameState.chaalAmount;
+
+                    decision = { action: selectedAction, amount: amount };
+                }
             } else {
-                // Weak cards - consider personality for bluffing
-                let chaalProbability = 0.7;
-                if (player.botPersonality === 'bluffer') chaalProbability += 0.2;
-                if (player.botRiskTolerance > 0.6) chaalProbability += 0.1;
-                
-                return Math.random() < chaalProbability ? { action: 'chaal', amount: gameState.chaalAmount } : { action: 'pack', amount: 0 };
-            }
-        } else if (player.botStrategy === 'balanced') {
-            // Balanced: Moderate approach with personality influence
-            if (player.cardStrength > 0.8) {
-                // Very strong cards - moderate raise
-                let raiseAmount = Math.min(Math.floor(gameState.chaalAmount * 1.5), gameState.maxBetAmount || gameState.chaalAmount * 2);
-                return { action: 'chaal', amount: raiseAmount };
-            } else if (player.cardStrength > 0.6) {
-                // Strong cards - chaal
-                return { action: 'chaal', amount: gameState.chaalAmount };
-            } else if (player.cardStrength > 0.4) {
-                // Medium cards - 75% chaal, 25% pack
-                return Math.random() < 0.75 ? { action: 'chaal', amount: gameState.chaalAmount } : { action: 'pack', amount: 0 };
-            } else {
-                // Weak cards - 50% pack, 50% chaal
-                return Math.random() < 0.5 ? { action: 'pack', amount: 0 } : { action: 'chaal', amount: gameState.chaalAmount };
-            }
-        } else {
-            // Conservative: More risk-averse with personality consideration
-            if (player.cardStrength > 0.8) {
-                // Very strong cards - still conservative but chaal
-                return { action: 'chaal', amount: gameState.chaalAmount };
-            } else if (player.cardStrength > 0.6) {
-                // Strong cards - chaal
-                return { action: 'chaal', amount: gameState.chaalAmount };
-            } else if (player.cardStrength > 0.4) {
-                // Medium cards - consider personality
-                let chaalProbability = 0.8;
-                if (player.botPersonality === 'tight') chaalProbability -= 0.2;
-                if (player.botRiskTolerance < 0.4) chaalProbability -= 0.1;
-                
-                return Math.random() < chaalProbability ? { action: 'chaal', amount: gameState.chaalAmount } : { action: 'pack', amount: 0 };
-            } else {
-                // Weak cards - pack more often unless bluffer
-                let packProbability = 0.6;
-                if (player.botPersonality === 'bluffer') packProbability -= 0.3;
-                if (player.botRiskTolerance > 0.6) packProbability -= 0.2;
-                
-                return Math.random() < packProbability ? { action: 'pack', amount: 0 } : { action: 'chaal', amount: gameState.chaalAmount };
+                // STRATEGY-BASED LOGIC
+                if (player.botStrategy === 'aggressive') {
+                    if (player.cardStrength > 0.8) {
+                        let raiseMultiplier = 2.0;
+                        if (player.botPersonality === 'bluffer') raiseMultiplier += 0.5;
+                        if (player.botRiskTolerance > 0.6) raiseMultiplier += 0.3;
+
+                        let raiseAmount = Math.min(
+                            Math.floor(gameState.chaalAmount * raiseMultiplier),
+                            gameState.maxBetAmount || gameState.chaalAmount * 3
+                        );
+                        decision = { action: 'chaal', amount: raiseAmount };
+                    } else if (player.cardStrength > 0.6) {
+                        let raiseMultiplier = 1.5;
+                        if (player.botPersonality === 'bluffer') raiseMultiplier += 0.3;
+
+                        let raiseAmount = Math.min(
+                            Math.floor(gameState.chaalAmount * raiseMultiplier),
+                            gameState.maxBetAmount || gameState.chaalAmount * 2
+                        );
+                        decision = { action: 'chaal', amount: raiseAmount };
+                    } else if (player.cardStrength > 0.4) {
+                        decision = { action: 'chaal', amount: gameState.chaalAmount };
+                    } else {
+                        let chaalProbability = 0.7;
+                        if (player.botPersonality === 'bluffer') chaalProbability += 0.2;
+                        if (player.botRiskTolerance > 0.6) chaalProbability += 0.1;
+
+                        decision = Math.random() < chaalProbability
+                            ? { action: 'chaal', amount: gameState.chaalAmount }
+                            : { action: 'pack', amount: 0 };
+                    }
+                } else if (player.botStrategy === 'balanced') {
+                    if (player.cardStrength > 0.8) {
+                        let raiseAmount = Math.min(
+                            Math.floor(gameState.chaalAmount * 1.5),
+                            gameState.maxBetAmount || gameState.chaalAmount * 2
+                        );
+                        decision = { action: 'chaal', amount: raiseAmount };
+                    } else if (player.cardStrength > 0.6) {
+                        decision = { action: 'chaal', amount: gameState.chaalAmount };
+                    } else if (player.cardStrength > 0.4) {
+                        decision = Math.random() < 0.75
+                            ? { action: 'chaal', amount: gameState.chaalAmount }
+                            : { action: 'pack', amount: 0 };
+                    } else {
+                        decision = Math.random() < 0.5
+                            ? { action: 'pack', amount: 0 }
+                            : { action: 'chaal', amount: gameState.chaalAmount };
+                    }
+                } else {
+                    // Conservative
+                    if (player.cardStrength > 0.8) {
+                        decision = { action: 'chaal', amount: gameState.chaalAmount };
+                    } else if (player.cardStrength > 0.6) {
+                        decision = { action: 'chaal', amount: gameState.chaalAmount };
+                    } else if (player.cardStrength > 0.4) {
+                        let chaalProbability = 0.8;
+                        if (player.botPersonality === 'tight') chaalProbability -= 0.2;
+                        if (player.botRiskTolerance < 0.4) chaalProbability -= 0.1;
+
+                        decision = Math.random() < chaalProbability
+                            ? { action: 'chaal', amount: gameState.chaalAmount }
+                            : { action: 'pack', amount: 0 };
+                    } else {
+                        let packProbability = 0.6;
+                        if (player.botPersonality === 'bluffer') packProbability -= 0.3;
+                        if (player.botRiskTolerance > 0.6) packProbability -= 0.2;
+
+                        decision = Math.random() < packProbability
+                            ? { action: 'pack', amount: 0 }
+                            : { action: 'chaal', amount: gameState.chaalAmount };
+                    }
+                }
             }
         }
 
     } catch (err) {
         console.error('[BOT] Error in makeBotDecision:', err);
-        // Fallback decision
-        return { action: 'chaal', amount: gameState.chaalAmount };
+        decision = { action: 'chaal', amount: gameState.chaalAmount };
     }
+
+    // ✅ SAFEGUARD: prevent packing before seeing cards
+    if (decision && decision.action === 'pack' && !gameState.isCardSeen) {
+        console.log('[BOT] Cannot pack without seeing cards — switching to seeCards');
+        decision = { action: 'seeCards', amount: 0 };
+    }
+
+    return decision;
 }
+
 
 // New function to evaluate card strength
 function evaluateCardStrength(cards) {
