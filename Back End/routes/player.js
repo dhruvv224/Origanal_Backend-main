@@ -909,9 +909,14 @@ module.exports = {
   },
   getChipLimit: async (req, res) => {
     const { player_id } = req.body;
+    console.log(req.body);
     const getPlayer = await common_helper.commonQuery(User, "findOne", {
       player_id,
     });
+    console.log(getPlayer,"<<<<<,,,get player is here player status");
+    console.log(firstRoomLimit.boot_value * 4, "<<<<<<<,,,,,firstRoomLimit");
+    console.log(getPlayer.data.chips, "<<<<<<<,,,,,player chips");
+    console.log(getPlayer.status, "<<<<<<<,,,,,player status");
     if (getPlayer.status == 1) {
       if (firstRoomLimit.boot_value * 4 > getPlayer.data.chips) {
         res.status(config.OK_STATUS).json({ status: 0 });
@@ -922,6 +927,7 @@ module.exports = {
       res
         .status(config.BAD_REQUEST)
         .json({ status: 0, message: common_message.COMMON_ERROR });
+
     }
   },
   getTableLimit: async (req, res) => {
