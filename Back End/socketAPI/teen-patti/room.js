@@ -605,18 +605,26 @@ function makeBotDecision(player, gameState) {
                     if (adjustedCardStrength > 0.6) {
                         decision = { action: 'show', amount: gameState.chaalAmount };
                     } else {
-                        decision = Math.random() < 0.7
-                            ? { action: 'pack', amount: 0 }
-                            : { action: 'chaal', amount: gameState.chaalAmount };
+                        // 🔄 updated logic: 50% pack / 50% show
+                        let randomChance = Math.random();
+                        if (randomChance < 0.5) {
+                            decision = { action: 'pack', amount: 0 };
+                        } else {
+                            decision = { action: 'show', amount: gameState.chaalAmount };
+                        }
                     }
                 }
             } else {
                 if (adjustedCardStrength > 0.8 || potSizeFactor > 0.8) {
                     decision = { action: 'chaal', amount: gameState.chaalAmount };
                 } else {
-                    decision = Math.random() < 0.9
-                        ? { action: 'pack', amount: 0 }
-                        : { action: 'chaal', amount: gameState.chaalAmount };
+                    // 🔄 updated logic: 50% pack / 50% show
+                    let randomChance = Math.random();
+                    if (randomChance < 0.5) {
+                        decision = { action: 'pack', amount: 0 };
+                    } else {
+                        decision = { action: 'show', amount: gameState.chaalAmount };
+                    }
                 }
             }
         }
@@ -706,9 +714,13 @@ function makeBotDecision(player, gameState) {
                     if (player.cardStrength > 0.8) {
                         decision = { action: 'chaal', amount: gameState.chaalAmount };
                     } else {
-                        decision = Math.random() < 0.7
-                            ? { action: 'pack', amount: 0 }
-                            : { action: 'chaal', amount: gameState.chaalAmount };
+                        // 🔄 updated logic: 50% pack / 50% show
+                        let randomChance = Math.random();
+                        if (randomChance < 0.5) {
+                            decision = { action: 'pack', amount: 0 };
+                        } else {
+                            decision = { action: 'show', amount: gameState.chaalAmount };
+                        }
                     }
                 }
             } else if (gameState.playerCount === 2) {
@@ -772,9 +784,13 @@ function makeBotDecision(player, gameState) {
                             ? { action: 'chaal', amount: gameState.chaalAmount }
                             : { action: 'pack', amount: 0 };
                     } else {
-                        decision = Math.random() < 0.5
-                            ? { action: 'pack', amount: 0 }
-                            : { action: 'chaal', amount: gameState.chaalAmount };
+                        // 🔄 updated logic: 50% pack / 50% show
+                        let randomChance = Math.random();
+                        if (randomChance < 0.5) {
+                            decision = { action: 'pack', amount: 0 };
+                        } else {
+                            decision = { action: 'show', amount: gameState.chaalAmount };
+                        }
                     }
                 } else {
                     // Conservative
@@ -791,13 +807,13 @@ function makeBotDecision(player, gameState) {
                             ? { action: 'chaal', amount: gameState.chaalAmount }
                             : { action: 'pack', amount: 0 };
                     } else {
-                        let packProbability = 0.6;
-                        if (player.botPersonality === 'bluffer') packProbability -= 0.3;
-                        if (player.botRiskTolerance > 0.6) packProbability -= 0.2;
-
-                        decision = Math.random() < packProbability
-                            ? { action: 'pack', amount: 0 }
-                            : { action: 'chaal', amount: gameState.chaalAmount };
+                        // 🔄 updated logic: 50% pack / 50% show
+                        let randomChance = Math.random();
+                        if (randomChance < 0.5) {
+                            decision = { action: 'pack', amount: 0 };
+                        } else {
+                            decision = { action: 'show', amount: gameState.chaalAmount };
+                        }
                     }
                 }
             }
@@ -816,6 +832,7 @@ function makeBotDecision(player, gameState) {
 
     return decision;
 }
+
 
 
 // New function to evaluate card strength
