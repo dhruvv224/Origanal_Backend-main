@@ -42,15 +42,15 @@ const AdsStatus = require('../models/ads_status');
 const sgMail = require("@sendgrid/mail");
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 const transporter = nodemailer.createTransport({
-    pool: true,
-    host: 'smtp.gmail.com',
-    port: 587,
-    secure: false,
-    requireTLS: true,
-    auth: {
-        user: process.env.SENDER_EMAIL,
-        pass: process.env.SENDER_PASSWORD
-    }
+  pool: true,
+  host: "smtp.gmail.com",
+  port: 587,
+  secure: false,
+  requireTLS: true,
+  auth: {
+    user: process.env.SENDER_EMAIL,
+    pass: process.env.SENDER_PASSWORD,
+  },
 });
 
 cron.schedule('0 1 * * *', () => {
@@ -133,91 +133,85 @@ module.exports = {
     //         res.status(config.OK_STATUS).json({ status: 0, message: common_message.ADMIN_ERROR });
     //     }
     // },
- adminLogin: async (req, res) => {
-        const { email, password } = req.body;
+ adminLogin : async (req, res) => {
+  const { email, password } = req.body;
 
-        const getAdmin = await common_helper.commonQuery(Admin, "findOne", { email });
+  const getAdmin = await common_helper.commonQuery(Admin, "findOne", { email });
 
-        console.log("-----------------Admin ---------------------------");
-        console.log(getAdmin);
-        console.log("-----------------Admin ---------------------------");
+  console.log("-----------------Admin ---------------------------");
+  console.log(getAdmin);
+  console.log("-----------------Admin ---------------------------");
 
-        // --- CHECK ADMIN EXISTENCE AND STATUS ---
-        if (getAdmin.status == 1 && getAdmin.data) {
-            const isMatch = await bcrypt.compare(password, getAdmin.data.password);
+  // --- CHECK ADMIN EXISTENCE AND STATUS ---
+  if (getAdmin.status == 1 && getAdmin.data) {
+    const isMatch = await bcrypt.compare(password, getAdmin.data.password);
 
-            if (isMatch) {
-                const verification_number = Math.floor(1000 + Math.random() * 9000);
+    if (isMatch) {
+      const verification_number = Math.floor(1000 + Math.random() * 9000);
 
-                // --- UPDATE ADMIN TOKEN ---
-                const updated_data = await common_helper.commonQuery(
-                    Admin,
-                    "findOneAndUpdate",
-                    { _id: getAdmin.data._id },
-                    { token: verification_number },
-                    "_id"
-                );
+      // --- UPDATE ADMIN TOKEN ---
+      const updated_data = await common_helper.commonQuery(
+        Admin,
+        "findOneAndUpdate",
+        { _id: getAdmin.data._id },
+        { token: verification_number },
+        "_id"
+      );
 
-                if (updated_data.status != 1) {
-                    return res.status(config.OK_STATUS).json({
-                        status: 0,
-                        message: common_message.ADMIN_ERROR,
-                    });
-                }
+      if (updated_data.status != 1) {
+        return res.status(config.OK_STATUS).json({
+          status: 0,
+          message: common_message.ADMIN_ERROR,
+        });
+      }
 
-                // --- SEND VERIFICATION EMAIL USING SENDGRID ---
-                const msg = {
-                    to: email, // Recipient email
-                    from: process.env.SENDER_EMAIL, // Sender email (must be a verified SendGrid sender)
-                    subject: "Admin Verification",
-                    html: `<h1>Verification Code</h1>
-                        <hr>
-                        <div style="margin-top:70px;">
-                        <center>
-                        <br />
-                        <div>${verification_number}</div>
-                        </center>
-                        </div>`,
-                };
+      // --- SEND EMAIL USING NODEMAILER SMTP ---
+      const mailOptions = {
+        from: `"Impel Jewels Admin" <${process.env.SENDER_EMAIL}>`, // ✅ your sender email
+        to: email,
+        subject: "Admin Verification",
+        html: `
+          <h1>Verification Code</h1>
+          <hr>
+          <div style="margin-top:70px; text-align:center;">
+            <div style="font-size:24px; font-weight:bold;">${verification_number}</div>
+          </div>
+        `,
+      };
 
-                console.log('verification_number ---------- : ', verification_number);
+      try {
+        await transporter.sendMail(mailOptions);
 
-                try {
-                    // SendGrid returns a promise, so we use await
-                    await sgMail.send(msg);
+        // --- SUCCESS LOGGING AND RESPONSE ---
+        await common_helper.commonQuery(AdminLog, "create", {
+          message: `Verification code sent to ${email} successfully.`,
+        });
 
-                    // --- SUCCESS LOGGING AND RESPONSE ---
-                    await common_helper.commonQuery(AdminLog, "create", {
-                        message: `Verification code sent to ${email} successfully.`,
-                    });
-
-                    res.status(config.OK_STATUS).json({
-                        status: 1,
-                        message: `Verification code sent to ${email} successfully.`,
-                        updated_data,
-                    });
-                } catch (error) {
-                    // --- ERROR HANDLING FOR EMAIL SENDING ---
-                    console.error("SendGrid Email Error:", error.response ? error.response.body : error);
-                    // Log to DB that login failed due to email issue if needed, then respond to client
-                    res.status(config.OK_STATUS).json({ message: "Error occurred while sending verification mail." });
-                }
-
-            } else {
-                // Invalid Password
-                res.status(config.OK_STATUS).json({
-                    status: 0,
-                    message: "Invalid email or password.",
-                });
-            }
-        } else {
-            // Admin Not Found or commonQuery Error
-            res.status(config.OK_STATUS).json({
-                status: 0,
-                message: common_message.ADMIN_ERROR,
-            });
-        }
+        res.status(config.OK_STATUS).json({
+          status: 1,
+          message: `Verification code sent to ${email} successfully.`,
+          updated_data,
+        });
+      } catch (error) {
+        console.error("SMTP Email Error:", error);
+        res.status(config.OK_STATUS).json({
+          status: 0,
+          message: "Error occurred while sending verification mail.",
+        });
+      }
+    } else {
+      res.status(config.OK_STATUS).json({
+        status: 0,
+        message: "Invalid email or password.",
+      });
     }
+  } else {
+    res.status(config.OK_STATUS).json({
+      status: 0,
+      message: common_message.ADMIN_ERROR,
+    });
+  }
+}
 ,
  createAdmin : async (req, res) => {
     try {
