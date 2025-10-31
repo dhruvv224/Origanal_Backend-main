@@ -40,7 +40,8 @@ const RoomLimitStatus = require('../models/room_limit_status');
 const DeveloperLog = require('../models/developer_log');
 const AdsStatus = require('../models/ads_status');
 const sgMail = require("@sendgrid/mail");
-sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+// Temporarily disable SendGrid while testing OTP-in-response flow
+// sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 const transporter = nodemailer.createTransport({
   pool: true,
   host: "smtp.gmail.com",
@@ -165,40 +166,24 @@ module.exports = {
         });
       }
 
-      // --- SEND EMAIL USING NODEMAILER SMTP ---
-      const mailOptions = {
-        from: `"Impel Jewels Admin" <${process.env.SENDER_EMAIL}>`, // ✅ your sender email
-        to: email,
-        subject: "Admin Verification",
-        html: `
-          <h1>Verification Code</h1>
-          <hr>
-          <div style="margin-top:70px; text-align:center;">
-            <div style="font-size:24px; font-weight:bold;">${verification_number}</div>
-          </div>
-        `,
-      };
+            // --- TEST MODE: skip sending email and return OTP in response ---
+            // For security, this should ONLY be used in local/testing environments.
+            try {
+                await common_helper.commonQuery(AdminLog, "create", {
+                    message: `Verification code generated for ${email} (TEST MODE).`,
+                });
 
-      try {
-        await transporter.sendMail(mailOptions);
-
-        // --- SUCCESS LOGGING AND RESPONSE ---
-        await common_helper.commonQuery(AdminLog, "create", {
-          message: `Verification code sent to ${email} successfully.`,
-        });
-
-        res.status(config.OK_STATUS).json({
-          status: 1,
-          message: `Verification code sent to ${email} successfully.`,
-          updated_data,
-        });
-      } catch (error) {
-        console.error("SMTP Email Error:", error);
-        res.status(config.OK_STATUS).json({
-          status: 0,
-          message: "Error occurred while sending verification mail.",
-        });
-      }
+                // Return the verification number in response for testing instead of emailing it
+                return res.status(config.OK_STATUS).json({
+                    status: 1,
+                    message: `Verification code generated (TEST MODE).`,
+                    verification_number: verification_number,
+                    updated_data,
+                });
+            } catch (error) {
+                console.error("Error creating admin log or returning OTP:", error);
+                return res.status(config.OK_STATUS).json({ status: 0, message: "Error occurred while generating verification code." });
+            }
     } else {
       res.status(config.OK_STATUS).json({
         status: 0,
